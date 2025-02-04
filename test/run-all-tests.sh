@@ -2,8 +2,8 @@
 
 # PostgreSQL pgTAP Test Runner with HTML Reports & Slack Notifications
 
-set -e  # Exit immediately if a command exits with a non-zero status
-set -o pipefail  # Ensures pipeline errors are not masked
+set -e
+set -o pipefail
 
 # Load environment variables from .env if available
 if [ -f .env ]; then
@@ -66,7 +66,7 @@ send_slack_notification() {
     curl -X POST -H 'Content-type: application/json' --data "{
         \"text\": \"PostgreSQL Test Summary:\n\nExecution Time: ${execution_time}s\n\nTest Report: $REPORT_FILE\",
         \"attachments\": [
-            {\"text\": \"Test Status: $(if [ ${#FAILED_TESTS[@]} -ne 0 ]; then echo '❌ Some tests failed'; else echo '✅ All tests passed!'; fi)\"}
+            {\"text\": \"Test Status: $(if [ ${#FAILED_TESTS[@]} -ne 0 ]; then echo 'Some tests failed'; else echo 'All tests passed!'; fi)\"}
         ]
     }" $SLACK_WEBHOOK_URL
 }
@@ -79,7 +79,7 @@ if [ ${#FAILED_TESTS[@]} -ne 0 ]; then
     for test in "${FAILED_TESTS[@]}"; do
         echo "   - $test"
     done
-    exit 1  # Fail the script if any test failed
+    exit 1
 fi
 
 echo "All tests passed successfully!"

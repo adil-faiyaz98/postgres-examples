@@ -17,7 +17,7 @@ jobs:
         image: postgres:15
         env:
           POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB: db_dev
         ports:
           - 5432:5432
@@ -29,13 +29,18 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install PostgreSQL Client & pgTAP
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client libdbd-pg-perl
-          psql -h localhost -U test_user -d db_dev -c "CREATE EXTENSION IF NOT EXISTS pgtap;"
+          psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB -c "CREATE EXTENSION IF NOT EXISTS pgtap;"
+
+      - name: Configure pgpass for Passwordless Authentication
+        run: |
+          echo "localhost:5432:$POSTGRES_DB:$POSTGRES_USER:${{ secrets.POSTGRES_PASSWORD }}" > ~/.pgpass
+          chmod 600 ~/.pgpass
 
       - name: Run All Tests & Generate HTML Report
         run: |
@@ -43,17 +48,21 @@ jobs:
           test/pgTAP/run-all-tests.sh --parallel
 
       - name: Upload Test Report as Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: PostgreSQL-pgTAP-Report
           path: test/pgTAP/pgTAP_test_report.html
 
       - name: Notify Slack on Test Completion
+        if: always()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
         run: |
+          STATUS="PostgreSQL CI Tests Passed!"
+          if [[ ${{ job.status }} != 'success' ]]; then STATUS="PostgreSQL CI Tests Failed!"; fi
+          
           curl -X POST -H 'Content-type: application/json' --data "{
-            \"text\": \"PostgreSQL CI Tests Completed! View test results below:\",
+            \"text\": \"$STATUS\",
             \"attachments\": [
                 {\"text\": \"Test Report: https://github.com/YOUR_ORG/YOUR_REPO/actions/runs/${{ github.run_id }}\"}
             ]

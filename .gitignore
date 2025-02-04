@@ -1,6 +1,40 @@
+# Ignore Composer dependencies and lock files
 composer.phar
 /vendor/
 
-# Commit your application's lock file https://getcomposer.org/doc/01-basic-usage.md#commit-your-composer-lock-file-to-version-control
-# You may choose to ignore a library lock file http://getcomposer.org/doc/02-libraries.md#lock-file
-# composer.lock
+# Ignore JetBrains IDE settings and workspace metadata
+.idea/
+*.iml
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.vscode/
+
+# Ignore PostgreSQL data, logs, and sensitive database files
+scripts/data/
+logs/
+*.log
+*.pid
+*.backup
+pgdata/
+pg_dump/
+
+# Ignore Docker and environment files
+docker-compose.override.yml
+.env
+.env.local
+.env.production
+.env.test
+
+# Ignore compiled files and cache
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+Desktop.ini

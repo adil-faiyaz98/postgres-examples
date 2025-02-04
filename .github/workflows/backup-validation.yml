@@ -1,0 +1,40 @@
+name: PostgreSQL Backup Encryption Validation
+
+on:
+  schedule:
+    - cron: "0 4 * * *"  # Runs at 4 AM UTC daily
+  workflow_dispatch:
+
+jobs:
+  validate-backups:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: db_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user -d db_dev"
+          --health-interval 10s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install PostgreSQL Client & pgBackRest
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client pgbackrest gnupg2
+
+      - name: Restore Backup & Verify Encryption
+        run: |
+          aws s3 cp s3://your-encrypted-backups-bucket/pgbackrest-latest.tar.gz.gpg .
+          gpg --decrypt --output backup.tar.gz pgbackrest-latest.tar.gz.gpg
+          tar -xzvf backup.tar.gz
+          pgbackrest --stanza=db_dev --log-level-console=info check

@@ -1,0 +1,20 @@
+- name: Schedule Encrypted PostgreSQL Backups
+  hosts: db_servers
+  become: yes
+
+  tasks:
+    - name: Add pgBackRest encrypted backup job to cron
+      cron:
+        name: "pgBackRest Encrypted Backup"
+        job: "/usr/bin/pgbackrest --stanza=db_dev --log-level-console=info backup && gpg --batch --encrypt --recipient backup@example.com --output /var/lib/pgbackrest/pgbackrest-$(date +%F).tar.gz.gpg /var/lib/pgbackrest/pgbackrest-$(date +%F).tar.gz"
+        minute: "0"
+        hour: "2"
+        user: postgres
+
+    - name: Add AWS S3 upload job
+      cron:
+        name: "Upload Encrypted Backups to S3"
+        job: "aws s3 cp /var/lib/pgbackrest/pgbackrest-$(date +%F).tar.gz.gpg s3://your-encrypted-backups-bucket/"
+        minute: "30"
+        hour: "2"
+        user: postgres

@@ -1,0 +1,38 @@
+name: PostgreSQL Deployment
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  terraform-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Initialize Terraform
+        run: terraform init
+
+      - name: Apply Terraform Configuration
+        run: terraform apply -auto-approve
+
+  ansible-configure:
+    needs: terraform-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install Ansible
+        run: sudo apt update && sudo apt install -y ansible
+
+      - name: Run Ansible Playbook
+        run: ansible-playbook ansible/playbook.yml -i "db_servers,"

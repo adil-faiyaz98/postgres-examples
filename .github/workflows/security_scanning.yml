@@ -1,0 +1,43 @@
+name: PostgreSQL Security Scanning
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: db_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user -d db_dev"
+          --health-interval 10s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install Security Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sqlmap
+
+      - name: Run SQL Injection Scans
+        run: |
+          sqlmap -u "postgresql://localhost:5432/db_dev" --batch --dbs
+
+      - name: Check for Unauthorized Access
+        run: psql -h localhost -U test_user -d db_dev -f test/pgTAP/04-security_test.sql

@@ -1,0 +1,12 @@
+[global]
+barman_home = /var/lib/barman
+log_file = /var/log/barman/barman.log
+compression = gzip
+
+[db_dev]
+description = "Production PostgreSQL Database"
+conninfo = "host=db_dev user=postgres dbname=db_dev"
+backup_method = postgres
+streaming_archiver = on
+archiver = on
+retention_policy = RECOVERY WINDOW OF 30 DAYS

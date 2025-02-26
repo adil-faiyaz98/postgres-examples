@@ -1,21 +1,21 @@
 \c db_dev;
 
--- 1) Create function to send Slack notifications
+-- Function to send Slack notifications
 CREATE OR REPLACE FUNCTION notifications.send_slack_alert(alert_type TEXT, alert_message TEXT)
 RETURNS VOID AS $$
-DECLARE slack_webhook_url TEXT := 'https://hooks.slack.com/services/your-webhook-url';
+DECLARE slack_webhook_url TEXT := current_setting('custom.slack_webhook_url', TRUE);
 DECLARE payload TEXT;
 BEGIN
     payload := json_build_object(
         'text', format(':rotating_light: *%s*: %s', alert_type, alert_message)
     )::TEXT;
 
-    -- Send POST request to Slack webhook URL
+    -- Send alert to Slack webhook URL
     PERFORM http_post(slack_webhook_url, 'application/json', payload);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 2) Function to notify on business rule violations
+-- Function to notify on business rule violations
 CREATE OR REPLACE FUNCTION notifications.notify_business_rule_violation()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -26,7 +26,12 @@ BEGIN
 
     RAISE EXCEPTION 'Order total cannot be negative!';
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3) Attach trigger to inventory.orders
+-- Attach trigger to inventory.orders
 CREATE TRIGGER slack_business_rule_violation
+BEFORE INSERT OR UPDATE
+ON inventory.orders
+FOR EACH ROW
+WHEN (NEW.total_amount < 0)
+EXECUTE FUNCTION notifications.notify_business_rule_violation();

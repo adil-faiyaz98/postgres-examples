@@ -1,9 +1,9 @@
 \c db_dev;
 
--- 1) Create function to send JSON payloads to an external Webhook
+-- Function to send JSON payloads to an external Webhook
 CREATE OR REPLACE FUNCTION notifications.send_webhook_alert(event_type TEXT, event_details TEXT)
 RETURNS VOID AS $$
-DECLARE webhook_url TEXT := 'https://your-webhook-endpoint.com/alerts';
+DECLARE webhook_url TEXT := current_setting('custom.webhook_url', TRUE);
 DECLARE payload TEXT;
 BEGIN
     payload := json_build_object(
@@ -17,7 +17,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 2) Function to notify when new partitions are created
+-- Function to notify when new partitions are created
 CREATE OR REPLACE FUNCTION accounting.notify_partition_creation_webhook()
 RETURNS VOID AS $$
 DECLARE next_partition TEXT;
@@ -39,7 +39,7 @@ BEGIN
         format('New partition %s created at %s', next_partition, NOW())
     );
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3) Automate webhook notifications for partition maintenance
+-- Automate webhook notifications for partition maintenance
 SELECT cron.schedule('0 0 1 * *', 'SELECT accounting.notify_partition_creation_webhook();');

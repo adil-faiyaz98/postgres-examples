@@ -66,3 +66,6 @@ USING (order_id IN (SELECT order_id FROM inventory.orders WHERE customer_id = cu
 ALTER TABLE inventory.customers FORCE ROW LEVEL SECURITY;
 ALTER TABLE inventory.orders FORCE ROW LEVEL SECURITY;
 ALTER TABLE accounting.payments FORCE ROW LEVEL SECURITY;
+
+-- 6) Enforce Session-Based Security for RLS
+SET LOCAL app.current_user_id = '123e4567-e89b-12d3-a456-426614174000';

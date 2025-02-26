@@ -17,7 +17,7 @@ echo "PostgreSQL is ready! Executing initialization scripts..."
 for f in /docker-entrypoint-initdb.d/*.sql; do
     echo "Running: $f..."
     psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f "$f" || {
-        echo "Error executing $f"
+        echo "Error executing $f. Stopping execution."
         exit 1
     }
 done

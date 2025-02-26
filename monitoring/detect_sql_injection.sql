@@ -1,13 +1,10 @@
 \c db_dev;
 
--- 1) Function to detect SQL injection patterns
+-- Function to detect SQL injection patterns using regex
 CREATE OR REPLACE FUNCTION security.detect_sql_injection()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.query ILIKE '%union select%' OR
-       NEW.query ILIKE '%information_schema%' OR
-       NEW.query ILIKE '%1=1%' OR
-       NEW.query ILIKE '%xp_cmdshell%' THEN
+    IF NEW.query ~* '(?i)(union select|information_schema|1=1|xp_cmdshell|pg_sleep|char\()' THEN
 
         -- Log the SQL injection attempt
         INSERT INTO logs.notification_log (event_type, event_source, details, logged_by, logged_at)
@@ -29,7 +26,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 2) Attach trigger to log queries and detect injections
+-- Attach trigger to log queries and detect injections
 CREATE TRIGGER sql_injection_detector
 BEFORE INSERT ON logs.query_log
 FOR EACH ROW

@@ -15,18 +15,21 @@ RETURNS TRIGGER AS $$
 DECLARE smart_contract_api_url TEXT := 'https://blockchain-security-network.com/api/execute-governance-contract';
 DECLARE smart_contract_payload TEXT;
 BEGIN
-    smart_contract_payload := json_build_object(
-        'contract_address', NEW.contract_address,
-        'security_rule', NEW.security_rule,
-        'execution_status', NEW.execution_status
-    )::TEXT;
+    -- Ensure contract execution is only triggered for approved contracts
+    IF NEW.execution_status = 'APPROVED' THEN
+        smart_contract_payload := json_build_object(
+            'contract_address', NEW.contract_address,
+            'security_rule', NEW.security_rule
+        )::TEXT;
 
-    -- Execute blockchain-enforced security rule
-    PERFORM http_post(smart_contract_api_url, 'application/json', smart_contract_payload);
+        -- Execute blockchain-enforced security rule
+        PERFORM http_post(smart_contract_api_url, 'application/json', smart_contract_payload);
 
-    -- Log execution
-    INSERT INTO logs.notification_log (event_type, event_source, details, logged_by, logged_at)
-    VALUES ('Governance Smart Contract Executed', 'autonomous_security.execute_governance_smart_contract', json_build_object('timestamp', NOW()), 'system', NOW());
+        -- Log execution
+        INSERT INTO logs.notification_log (event_type, event_source, details, logged_by, logged_at)
+        VALUES ('Governance Smart Contract Executed', 'autonomous_security.execute_governance_smart_contract',
+                json_build_object('contract_id', NEW.contract_id, 'timestamp', NOW()), 'system', NOW());
+    END IF;
 
     RETURN NEW;
 END;
@@ -34,7 +37,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 3) Attach trigger to execute PostgreSQL security governance via blockchain smart contracts
 CREATE TRIGGER execute_governance_smart_contract_trigger
-AFTER INSERT
+AFTER INSERT OR UPDATE
 ON autonomous_security.governance_smart_contracts
 FOR EACH ROW
+WHEN (NEW.execution_status = 'APPROVED')
 EXECUTE FUNCTION autonomous_security.execute_governance_smart_contract();

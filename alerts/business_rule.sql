@@ -15,7 +15,8 @@ BEGIN
 
     RAISE EXCEPTION 'Order total cannot be negative!';
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 
 -- 2) Attach trigger to inventory.orders
 CREATE TRIGGER prevent_negative_orders

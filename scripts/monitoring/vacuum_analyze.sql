@@ -10,47 +10,58 @@ VACUUM ANALYZE inventory.orders;
 VACUUM ANALYZE inventory.customers;
 VACUUM ANALYZE accounting.transactions;
 
--- 3) Perform a `VACUUM FULL` (CAUTION: Locks the table, use during maintenance windows only)
-VACUUM FULL inventory.products;
-
--- 4) Rebuild indexes to reclaim space and improve query monitoring
-REINDEX TABLE inventory.orders;
-REINDEX TABLE inventory.customers;
-REINDEX TABLE inventory.products;
-
--- 5) Automate autovacuum settings for optimal monitoring (Requires Admin Role)
-ALTER TABLE inventory.orders SET (
-    autovacuum_enabled = true,
-    autovacuum_vacuum_threshold = 50,
-    autovacuum_vacuum_scale_factor = 0.1,
-    autovacuum_analyze_threshold = 50,
-    autovacuum_analyze_scale_factor = 0.05
-);
-
-ALTER TABLE inventory.customers SET (
-    autovacuum_enabled = true,
-    autovacuum_vacuum_threshold = 100,
-    autovacuum_vacuum_scale_factor = 0.05,
-    autovacuum_analyze_threshold = 100,
-    autovacuum_analyze_scale_factor = 0.02
-);
-
--- 6) Monitor autovacuum activity (Checks vacuuming efficiency)
-SELECT relname, n_live_tup, n_dead_tup, last_autovacuum, last_autoanalyze
-FROM pg_stat_all_tables
-WHERE schemaname = 'inventory'
-ORDER BY last_autovacuum DESC NULLS LAST;
-
--- 7) Identify unused indexes and index bloat (Optimization Insights)
+-- 3) Check for table bloat before performing `VACUUM FULL`
 SELECT
-    schemaname,
-    relname AS table_name,
+    schemaname, relname, pg_size_pretty(pg_table_size(c.oid)) AS table_size,
+    pg_size_pretty(pg_relation_size(c.oid)) AS relation_size,
+    (pg_table_size(c.oid) - pg_relation_size(c.oid)) AS wasted_space
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'inventory'
+ORDER BY wasted_space DESC
+LIMIT 5;
+
+-- Perform `VACUUM FULL` only if wasted space > 50% of table size
+DO $$
+DECLARE table_name TEXT;
+BEGIN
+    FOR table_name IN
+        SELECT relname
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'inventory'
+        AND (pg_table_size(c.oid) - pg_relation_size(c.oid)) > (pg_table_size(c.oid) * 0.5)
+    LOOP
+        EXECUTE format('VACUUM FULL %I;', table_name);
+    END LOOP;
+END $$;
+
+-- 4) Rebuild indexes only if they are bloated
+SELECT
     indexrelname AS index_name,
-    idx_scan AS scans,
+    relname AS table_name,
     pg_size_pretty(pg_relation_size(indexrelid)) AS index_size
 FROM pg_stat_user_indexes
-WHERE idx_scan = 0  -- Unused indexes
+WHERE idx_scan = 0 -- Unused indexes
 ORDER BY pg_relation_size(indexrelid) DESC;
 
--- 8) Log vacuum activity for reference
-SELECT now(), 'VACUUM ANALYZE completed for inventory.orders and customers tables';
+-- Rebuild bloated indexes
+DO $$
+DECLARE index_name TEXT;
+BEGIN
+    FOR index_name IN
+        SELECT indexrelname
+        FROM pg_stat_user_indexes
+        WHERE idx_scan = 0
+        ORDER BY pg_relation_size(indexrelid) DESC
+    LOOP
+        EXECUTE format('REINDEX INDEX %I;', index_name);
+    END LOOP;
+END $$;
+
+-- 5) Automate autovacuum settings dynamically based on table size
+DO $$
+DECLARE t RECORD;
+BEGIN
+    FOR t IN
+        SELECT rel

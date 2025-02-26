@@ -1,17 +1,17 @@
 \c db_dev;
 
--- 1) Create function to detect login anomalies
+-- Function to detect login anomalies
 CREATE OR REPLACE FUNCTION security.detect_suspicious_logins()
 RETURNS TRIGGER AS $$
 DECLARE login_count INT;
 BEGIN
-    -- Check if the user has logged in more than 5 times in the last 5 minutes
+    -- Check if the user has logged in more than the allowed threshold
     SELECT COUNT(*) INTO login_count
     FROM auth.active_sessions
     WHERE user_id = NEW.user_id
     AND login_time >= NOW() - INTERVAL '5 minutes';
 
-    IF login_count > 5 THEN
+    IF login_count > current_setting('custom.suspicious_login_threshold')::INT THEN
         -- Log suspicious login attempt
         INSERT INTO logs.notification_log (event_type, event_source, details, logged_by, logged_at)
         VALUES ('Suspicious Login', 'auth.active_sessions', json_build_object('user_id', NEW.user_id, 'login_count', login_count), current_user, NOW());
@@ -29,7 +29,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 2) Attach trigger to monitor login attempts
+-- Attach trigger to monitor login attempts
 CREATE TRIGGER detect_suspicious_logins
 AFTER INSERT ON auth.active_sessions
 FOR EACH ROW

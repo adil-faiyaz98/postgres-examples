@@ -11,11 +11,5 @@ FROM logs.notification_log
 GROUP BY event_type
 ORDER BY COUNT(*) DESC;
 
--- Manually delete old logs (if needed)
-DELETE FROM logs.notification_log WHERE logged_at < NOW() - INTERVAL '6 months';
-
--- Check PostgreSQL log directory for large log files
-SELECT pg_ls_dir('/var/log/postgresql');
-
--- Manually delete a specific old log file
-EXECUTE format('rm -f /var/log/postgresql/postgresql-2023-01-01.log');
+-- Safely rotate PostgreSQL logs instead of deleting manually
+SELECT pg_logfile_rotate();

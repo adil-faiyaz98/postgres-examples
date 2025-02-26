@@ -1,11 +1,12 @@
 \c db_dev;
 
--- 1) Function to send logging to Datadog
+-- Function to send logging to Datadog
 CREATE OR REPLACE FUNCTION logs.export_logs_to_datadog()
 RETURNS TRIGGER AS $$
-DECLARE datadog_api_url TEXT := 'https://http-intake.logging.datadoghq.com/v1/input';
-DECLARE datadog_api_key TEXT := 'your-datadog-api-key';
-DECLARE log_payload TEXT;
+DECLARE
+    datadog_api_url TEXT := 'https://http-intake.logging.datadoghq.com/v1/input';
+    datadog_api_key TEXT := current_setting('custom.datadog_api_key', TRUE);
+    log_payload TEXT;
 BEGIN
     log_payload := json_build_object(
         'ddsource', 'postgresql',
@@ -17,14 +18,12 @@ BEGIN
         'logged_at', NEW.logged_at
     )::TEXT;
 
-    -- Send log data to Datadog
     PERFORM http_post(datadog_api_url || '?api_key=' || datadog_api_key, 'application/json', log_payload);
-
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY INVOKER;
 
--- 2) Attach trigger to send logging to Datadog
+-- Attach trigger to send logs to Datadog
 CREATE TRIGGER send_logs_to_datadog
 AFTER INSERT
 ON logs.notification_log

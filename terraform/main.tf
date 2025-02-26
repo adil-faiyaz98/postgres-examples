@@ -59,10 +59,6 @@ variable "db_password" {
   default = "securepassword"
 }
 
-provider "aws" {
-  region = "us-east-1"
-}
-
 resource "aws_s3_bucket" "pg_encrypted_backups" {
   bucket = "your-encrypted-backups-bucket"
   acl    = "private"
@@ -87,5 +83,3 @@ resource "aws_s3_bucket" "pg_encrypted_backups" {
 output "s3_encrypted_backup_bucket" {
   value = aws_s3_bucket.pg_encrypted_backups.bucket
 }
-
-

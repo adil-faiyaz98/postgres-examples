@@ -1,15 +1,13 @@
 \c db_dev;
 
--- 1) Create function to delete old logging
+-- Function to delete old logs
 CREATE OR REPLACE FUNCTION logs.cleanup_old_logs()
 RETURNS VOID AS $$
 BEGIN
-    PERFORM pg_notify('log_cleanup', 'Deleting logging older than 30 days');
-
-    -- Delete logging older than 30 days
-    EXECUTE format('find /var/log/postgresql -name ''postgresql-*.log'' -mtime +30 -delete');
+    DELETE FROM logs.notification_log WHERE logged_at < NOW() - INTERVAL current_setting('custom.log_retention_days', TRUE) || ' days';
+    PERFORM pg_notify('log_cleanup', 'Deleted logs older than ' || current_setting('custom.log_retention_days', TRUE) || ' days');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 2) Schedule automatic log cleanup using pg_cron (Runs daily at midnight)
-SELECT cron.schedule('0 0 * * *', 'SELECT logging.cleanup_old_logs();');
+-- Schedule automatic log cleanup using pg_cron
+SELECT cron.schedule('0 0 * * *', 'SELECT logs.cleanup_old_logs();');

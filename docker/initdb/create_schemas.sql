@@ -10,9 +10,10 @@ CREATE SCHEMA IF NOT EXISTS auth AUTHORIZATION db_owner;
 CREATE SCHEMA IF NOT EXISTS analytics AUTHORIZATION db_owner;
 
 -- Create dedicated roles with proper access control
-CREATE ROLE db_owner WITH LOGIN PASSWORD 'owner_password';
-CREATE ROLE db_app WITH LOGIN PASSWORD 'app_password';
-CREATE ROLE db_readonly WITH LOGIN PASSWORD 'readonly_password';
+CREATE ROLE db_owner WITH LOGIN PASSWORD current_setting('custom.db_owner_password', TRUE);
+CREATE ROLE db_app WITH LOGIN PASSWORD current_setting('custom.db_app_password', TRUE);
+CREATE ROLE db_readonly WITH LOGIN PASSWORD current_setting('custom.db_readonly_password', TRUE);
+
 
 -- Assign ownership to db_owner
 ALTER SCHEMA inventory OWNER TO db_owner;
@@ -25,5 +26,6 @@ GRANT CONNECT ON DATABASE db_dev TO db_app, db_readonly;
 GRANT USAGE ON SCHEMA inventory, accounting, auth, analytics TO db_app, db_readonly;
 
 -- Restrict app_user to only modifying app tables
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA inventory TO db_app;
-GRANT SELECT ON ALL TABLES IN SCHEMA inventory TO db_readonly;
+ALTER DEFAULT PRIVILEGES IN SCHEMA inventory GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO db_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA inventory GRANT SELECT ON TABLES TO db_readonly;
+

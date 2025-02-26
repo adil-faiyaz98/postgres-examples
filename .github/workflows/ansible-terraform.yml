@@ -22,7 +22,10 @@ jobs:
         run: terraform init
 
       - name: Apply Terraform Configuration
-        run: terraform apply -auto-approve
+        run: |
+          set -e
+          terraform apply -auto-approve | tee terraform.log
+  
 
   ansible-configure:
     needs: terraform-deploy
@@ -34,5 +37,9 @@ jobs:
       - name: Install Ansible
         run: sudo apt update && sudo apt install -y ansible
 
+      - name: Extract Terraform Output
+        run: terraform output -raw db_host > inventory.ini
+
       - name: Run Ansible Playbook
-        run: ansible-playbook ansible/playbook.yml -i "db_servers,"
+        run: ansible-playbook ansible/playbook.yml -i inventory.ini
+

@@ -1,16 +1,20 @@
 \c db_dev;
 
--- 1) Create a centralized logging table
+-- Create a centralized logging table
 CREATE TABLE IF NOT EXISTS logs.notification_log (
     log_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    event_type TEXT NOT NULL,       -- e.g., 'RLS Violation', 'Business Rule Violation'
-    event_source TEXT NOT NULL,     -- e.g., 'orders_table', 'partition_maintenance'
-    details JSONB NOT NULL,         -- Stores structured event details
+    event_type TEXT NOT NULL,
+    event_source TEXT NOT NULL,
+    details JSONB NOT NULL,
     logged_by TEXT DEFAULT current_user,
     logged_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2) Function to log events into the table
+-- Ensure only specific roles can write to logs
+GRANT INSERT ON logs.notification_log TO app_user;
+GRANT SELECT ON logs.notification_log TO readonly_user;
+
+-- Function to log events into the table
 CREATE OR REPLACE FUNCTION logs.store_notification_log(
     p_event_type TEXT,
     p_event_source TEXT,

@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS logging.audit_log (
     log_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     event_type TEXT NOT NULL CHECK (event_type IN ('INSERT', 'UPDATE', 'DELETE', 'FAILED_LOGIN', 'UNAUTHORIZED_ACCESS')),
     table_name TEXT NOT NULL,
-    query TEXT NOT NULL,
+    old_values JSONB,
+    new_values JSONB,
     user TEXT NOT NULL DEFAULT current_user,
     event_timestamp TIMESTAMPTZ DEFAULT NOW()
 );
@@ -14,11 +15,12 @@ CREATE TABLE IF NOT EXISTS logging.audit_log (
 CREATE OR REPLACE FUNCTION logging.record_table_changes()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO logging.audit_log (event_type, table_name, query, user)
+    INSERT INTO logging.audit_log (event_type, table_name, old_values, new_values, user)
     VALUES (
         TG_OP,
         TG_TABLE_NAME,
-        current_query(),
+        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN row_to_json(OLD) END,
+        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN row_to_json(NEW) END,
         current_user
     );
     RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
@@ -42,8 +44,8 @@ EXECUTE FUNCTION logging.record_table_changes();
 CREATE OR REPLACE FUNCTION logging.log_failed_logins()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO logging.audit_log (event_type, table_name, query, user)
-    VALUES ('FAILED_LOGIN', 'auth.failed_logins', current_query(), current_user);
+    INSERT INTO logging.audit_log (event_type, table_name, old_values, new_values, user)
+    VALUES ('FAILED_LOGIN', 'auth.failed_logins', NULL, row_to_json(NEW), current_user);
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

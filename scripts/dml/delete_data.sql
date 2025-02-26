@@ -7,7 +7,7 @@ SELECT 'DELETE', 'inventory.customers', json_build_object('customer_id', custome
 FROM inventory.customers
 WHERE email = 'alice.smith@securemail.com';
 
--- Delete Customer (Enforces ON DELETE CASCADE for orders)
+-- Delete Customer with Cascade (Ensures ON DELETE CASCADE)
 DELETE FROM inventory.customers
 WHERE email = 'alice.smith@securemail.com'
 RETURNING *;
@@ -18,9 +18,19 @@ SELECT 'DELETE', 'inventory.orders', json_build_object('order_id', order_id, 'to
 FROM inventory.orders
 WHERE customer_id NOT IN (SELECT customer_id FROM inventory.customers);
 
+-- Delete Orphaned Orders
+DELETE FROM inventory.orders
+WHERE customer_id NOT IN (SELECT customer_id FROM inventory.customers)
+RETURNING *;
+
 -- Delete Old Transactions (Ensuring Partitions are Used)
 DELETE FROM accounting.transactions
 WHERE txn_date < NOW() - INTERVAL '2 years'
 RETURNING *;
+
+-- Rollback on error
+EXCEPTION WHEN OTHERS THEN
+    ROLLBACK;
+    RAISE NOTICE 'Error in deletion process. Rolled back changes.';
 
 COMMIT;

@@ -1,10 +1,10 @@
 \c db_dev;
 
--- Enable detailed execution timing (temporarily for this session)
-SET client_min_messages TO WARNING; -- Reduce noise in output
-SET enable_seqscan = OFF; -- Force index usage for monitoring tuning
+-- Enable detailed execution timing for this session only
+SET LOCAL client_min_messages TO WARNING;
+SET LOCAL enable_seqscan = OFF;
 
--- Checking query plan for customer lookup by email (Uses GIN Index)
+-- Checking query plan for customer lookup by email (Uses B-Tree Index)
 EXPLAIN ANALYZE
 SELECT customer_id, first_name, last_name
 FROM inventory.customers
@@ -39,5 +39,11 @@ WHERE customer_id = (SELECT customer_id FROM inventory.customers WHERE email = '
 EXPLAIN ANALYZE
 SELECT * FROM analytics.monthly_sales WHERE month >= NOW() - INTERVAL '6 months';
 
+-- Checking partitioned table query optimization (Ensures BRIN index effectiveness)
+EXPLAIN ANALYZE
+SELECT transaction_id, txn_date, amount
+FROM accounting.transactions
+WHERE txn_date >= NOW() - INTERVAL '12 months';
+
 -- Reset session settings
-SET enable_seqscan = ON;
+RESET enable_seqscan;

@@ -33,11 +33,13 @@ BEGIN
         WHERE inhparent = 'accounting.transactions'::regclass
         AND inhrelid::regclass::TEXT < 'transactions_' || to_char(NOW() - INTERVAL '2 years', 'YYYY_MM')
     LOOP
-        EXECUTE format('DROP TABLE IF EXISTS %I CASCADE;', part_name);
+        IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = part_name) THEN
+            EXECUTE format('DROP TABLE IF EXISTS %I CASCADE;', part_name);
 
-        -- Log partition cleanup
-        INSERT INTO logging.central_notification_log (event_type, event_source, event_details, logged_by)
-        VALUES ('Partition Deleted', 'accounting.transactions', jsonb_build_object('partition_name', part_name), 'system');
+            -- Log partition cleanup
+            INSERT INTO logging.central_notification_log (event_type, event_source, event_details, logged_by)
+            VALUES ('Partition Deleted', 'accounting.transactions', jsonb_build_object('partition_name', part_name), 'system');
+        END IF;
     END LOOP;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

@@ -11,17 +11,18 @@ CREATE TABLE IF NOT EXISTS accounting.transactions (
 -- Automatically creates new partitions each month
 CREATE OR REPLACE FUNCTION accounting.create_next_month_partition()
 RETURNS VOID AS $$
-DECLARE next_month DATE := date_trunc('month', NOW()) + INTERVAL '1 month';
+DECLARE next_month TEXT;
 BEGIN
-    EXECUTE format(
-        'CREATE TABLE IF NOT EXISTS accounting.transactions_%s
-         PARTITION OF accounting.transactions
-         FOR VALUES FROM (%L) TO (%L);',
-        to_char(next_month, 'YYYY_MM'),
-        next_month, next_month + INTERVAL '1 month'
-    );
+    next_month := to_char(NOW() + INTERVAL '1 month', 'YYYY_MM');
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE tablename = 'transactions_' || next_month) THEN
+        EXECUTE format(
+            'CREATE TABLE accounting.transactions_%s PARTITION OF accounting.transactions
+             FOR VALUES FROM (%L) TO (%L);',
+            next_month,
+            date_trunc('month', NOW() + INTERVAL '1 month'),
+            date_trunc('month', NOW() + INTERVAL '2 months')
+        );
+    END IF;
 END;
 $$ LANGUAGE plpgsql;
 
--- Automate partition creation
-SELECT cron.schedule('0 0 1 * *', 'SELECT accounting.create_next_month_partition();');

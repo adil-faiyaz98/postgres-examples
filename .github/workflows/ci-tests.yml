@@ -16,9 +16,9 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: test_user
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_DB: db_dev
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
         ports:
           - 5432:5432
         options: >-
@@ -58,12 +58,15 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
         run: |
-          STATUS="PostgreSQL CI Tests Passed!"
-          if [[ ${{ job.status }} != 'success' ]]; then STATUS="PostgreSQL CI Tests Failed!"; fi
-          
-          curl -X POST -H 'Content-type: application/json' --data "{
-            \"text\": \"$STATUS\",
-            \"attachments\": [
-                {\"text\": \"Test Report: https://github.com/YOUR_ORG/YOUR_REPO/actions/runs/${{ github.run_id }}\"}
+          STATUS="PostgreSQL CI Tests Passed"
+          if [[ ${{ job.status }} != 'success' ]]; then STATUS="PostgreSQL CI Tests Failed"; fi
+
+          curl -X POST -H 'Content-type: application/json' --data '{
+            "text": "'"$STATUS"'",
+            "attachments": [
+              {
+                "color": "'"${{ job.status == 'success' && 'good' || 'danger' }}"'",
+                "text": "Test Report: [View Here](https://github.com/YOUR_ORG/YOUR_REPO/actions/runs/${{ github.run_id }})"
+              }
             ]
-          }" $SLACK_WEBHOOK_URL
+          }' $SLACK_WEBHOOK_URL

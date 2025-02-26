@@ -8,7 +8,16 @@ CREATE TABLE IF NOT EXISTS autonomous_security.ai_governed_policies (
     last_updated TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2) Function to allow AI to dynamically adjust PostgreSQL security policies
+-- 2) Create table to track policy change history
+CREATE TABLE IF NOT EXISTS autonomous_security.ai_policy_history (
+    history_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    policy_id UUID NOT NULL REFERENCES autonomous_security.ai_governed_policies(policy_id),
+    previous_value BOOLEAN,
+    updated_value BOOLEAN,
+    changed_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3) Function to allow AI to dynamically adjust PostgreSQL security policies
 CREATE OR REPLACE FUNCTION autonomous_security.update_ai_governance_policies()
 RETURNS VOID AS $$
 BEGIN
@@ -19,13 +28,11 @@ BEGIN
         SELECT DISTINCT event_type
         FROM ml.anomaly_predictions
         WHERE detected_anomaly = TRUE
-    );
+    )
+    RETURNING policy_id, FALSE, TRUE INTO policy_id, previous_value, updated_value;
 
     -- Log AI security policy updates
-    INSERT INTO logs.notification_log (event_type, event_source, details, logged_by, logged_at)
-    VALUES ('AI Security Policy Update', 'autonomous_security.update_ai_governance_policies', json_build_object('timestamp', NOW()), 'system', NOW());
+    INSERT INTO autonomous_security.ai_policy_history (policy_id, previous_value, updated_value)
+    VALUES (policy_id, previous_value, updated_value);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 3) Automate AI security policy updates every 12 hours
-SELECT cron.schedule('0 */12 * * *', 'SELECT autonomous_security.update_ai_governance_policies();');

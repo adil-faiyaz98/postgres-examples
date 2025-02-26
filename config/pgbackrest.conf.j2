@@ -4,12 +4,14 @@ repo1-retention-full=7
 repo1-type=s3
 repo1-s3-bucket=your-encrypted-backups-bucket
 repo1-s3-endpoint=s3.amazonaws.com
-repo1-s3-key=your-access-key
-repo1-s3-key-secret=your-secret-key
+repo1-s3-key={{ lookup('env', 'AWS_ACCESS_KEY_ID') }}
+repo1-s3-key-secret={{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}
+
 
 # Enable GPG Encryption
 repo1-cipher-type=gpg
-repo1-cipher-passphrase=your-gpg-passphrase
+repo1-cipher-passphrase={{ lookup('env', 'PGP_PASSPHRASE') }}
+
 
 [db_dev]
 pg1-path=/var/lib/postgresql/15/main

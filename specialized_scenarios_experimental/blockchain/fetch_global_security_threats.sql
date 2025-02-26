@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS blockchain.global_security_threats (
     blockchain_transaction TEXT UNIQUE NOT NULL, -- Blockchain transaction reference
     threat_type TEXT NOT NULL,
     source TEXT NOT NULL, -- (e.g., "Ethereum Smart Contract", "Hyperledger Consortium")
-    confidence_score NUMERIC DEFAULT 75,
+    confidence_score NUMERIC CHECK (confidence_score >= 0 AND confidence_score <= 100) DEFAULT 75,
     detection_timestamp TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -19,14 +19,17 @@ BEGIN
     -- Fetch blockchain-recorded security threats
     threats_json := (SELECT http_get(blockchain_api_url));
 
-    -- Insert threats into PostgreSQL
+    -- Validate and insert threats into PostgreSQL
     INSERT INTO blockchain.global_security_threats (blockchain_transaction, threat_type, source, confidence_score)
     SELECT
         transaction,
         threat_type,
         source,
         confidence_score
-    FROM jsonb_to_recordset(threats_json) AS x(transaction TEXT, threat_type TEXT, source TEXT, confidence_score NUMERIC);
+    FROM jsonb_to_recordset(threats_json) AS x(transaction TEXT, threat_type TEXT, source TEXT, confidence_score NUMERIC)
+    WHERE EXISTS (
+        SELECT 1 FROM threat_intelligence.trusted_sources WHERE source = x.source
+    );
 
     -- Log blockchain threat ingestion
     INSERT INTO logs.notification_log (event_type, event_source, details, logged_by, logged_at)

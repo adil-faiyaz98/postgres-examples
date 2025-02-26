@@ -1,14 +1,17 @@
 \c db_dev;
 
+-- Ensure pg_trgm extension is enabled for text search
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 -- GiST Index for range-based queries on transaction amounts
 CREATE INDEX IF NOT EXISTS idx_transactions_amount_gist
   ON accounting.transactions USING GIST (amount);
 
--- GiST Index for full-text search on web events (if needed)
-CREATE INDEX IF NOT EXISTS idx_web_events_search_gist
-  ON analytics.web_events USING GIST (event_data);
+-- Use GIN instead of GiST for full-text search
+CREATE INDEX IF NOT EXISTS idx_web_events_search_gin
+  ON analytics.web_events USING GIN (to_tsvector('english', event_data));
 
--- Example queries optimized by GiST
+-- Example queries optimized by indexes
 SELECT * FROM accounting.transactions
 WHERE amount <@ numrange(50, 500, '[]'); -- Efficient for numeric range filtering
 

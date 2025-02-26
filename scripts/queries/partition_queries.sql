@@ -1,9 +1,6 @@
 \c db_dev;
 
--- Query a specific partition (January 2024)
-SELECT * FROM accounting.transactions_2024_01;
-
--- Query using parent table (automatically routes to correct partition)
+-- Query parent table (automatically routes to correct partition)
 SELECT * FROM accounting.transactions
 WHERE txn_date BETWEEN '2024-01-01' AND '2024-01-31';
 
@@ -14,7 +11,7 @@ SELECT
 FROM pg_inherits
 WHERE inhparent = 'accounting.transactions'::regclass;
 
--- Delete old partitions (e.g., transactions before 2022)
+-- Safely delete old partitions
 DO $$
 DECLARE part_name TEXT;
 BEGIN
@@ -24,6 +21,8 @@ BEGIN
         WHERE inhparent = 'accounting.transactions'::regclass
         AND inhrelid::regclass::text LIKE 'accounting.transactions_2022%'
     LOOP
-        EXECUTE format('DROP TABLE IF EXISTS %I CASCADE;', part_name);
+        IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = part_name) THEN
+            EXECUTE format('DROP TABLE IF EXISTS %I CASCADE;', part_name);
+        END IF;
     END LOOP;
 END $$;

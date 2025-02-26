@@ -15,8 +15,8 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB: db_dev
         ports:
           - 5432:5432
@@ -37,7 +37,8 @@ jobs:
 
       - name: Run SQL Injection Scans
         run: |
-          sqlmap -u "postgresql://localhost:5432/db_dev" --batch --dbs
+          sqlmap -u "http://localhost/api/v1/users?search=test" --dbms=PostgreSQL --batch --level=5 --risk=3 --random-agent --technique=BEUST
 
       - name: Check for Unauthorized Access
-        run: psql -h localhost -U test_user -d db_dev -f test/pgTAP/04-security_test.sql
+        run: psql -h localhost -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }} -f test/pgTAP/04-security_test.sql
+

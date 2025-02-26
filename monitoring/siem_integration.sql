@@ -1,6 +1,6 @@
 \c db_dev;
 
--- 1) Create function to send security logs to SIEM tools (Splunk, Datadog, ELK)
+-- Function to send logs to SIEM tools (Splunk, Datadog, ELK)
 CREATE OR REPLACE FUNCTION monitoring.send_logs_to_siem()
 RETURNS TRIGGER AS $$
 DECLARE siem_api_url TEXT := 'https://siem-server/api/security-alerts';
@@ -16,12 +16,11 @@ BEGIN
 
     -- Send security alert to SIEM system
     PERFORM http_post(siem_api_url, 'application/json', siem_payload);
-
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 2) Attach trigger to escalate security incidents to SIEM
+-- Attach trigger to escalate security incidents to SIEM
 CREATE TRIGGER siem_security_alert_trigger
 AFTER INSERT
 ON logs.notification_log

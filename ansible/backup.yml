@@ -6,7 +6,7 @@
     - name: Add pgBackRest backup job to cron
       cron:
         name: "pgBackRest Nightly Backup"
-        job: "/usr/bin/pgbackrest --stanza=db_dev --log-level-console=info backup"
+        job: "/usr/bin/pgbackrest --stanza=db_dev --log-level-console=info backup --repo1-retention-full=7"
         minute: "0"
         hour: "2"
         user: postgres
@@ -14,8 +14,16 @@
     - name: Add Barman backup job to cron
       cron:
         name: "Barman Weekly Backup"
-        job: "/usr/bin/barman backup db_dev"
+        job: "/usr/bin/barman backup db_dev --keep=4"
         minute: "0"
         hour: "3"
         day: "1"
+        user: postgres
+
+    - name: Add pgBackRest integrity check
+      cron:
+        name: "pgBackRest Integrity Check"
+        job: "/usr/bin/pgbackrest --stanza=db_dev --log-level-console=info check"
+        minute: "30"
+        hour: "2"
         user: postgres

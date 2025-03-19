@@ -2,15 +2,15 @@
 
 # **PostgreSQL AI-Driven Security and Cyber Defense System**  
 
-This repository aims to provide, to an extent, a **secure, AI-powered, and automation-driven PostgreSQL security and monitoring framework**. It integrates **machine learning, blockchain, federated learning, and SOAR security automation** to provide a **real-time cyber defense system**.
+This repository provides a **production-ready, tiered security framework** for PostgreSQL databases. It integrates **machine learning, blockchain, federated learning, and SOAR security automation** to create a **comprehensive cyber defense system** that can be tailored to your specific security and performance requirements.
 
 ## **Features**  
+- **Tiered Security Implementation**: Choose from Basic, Standard, or Advanced security based on your needs.
 - **Automated Threat Detection**: AI-driven anomaly detection, real-time risk scoring, and reinforcement learning security policies.  
-- **Security Orchestration and Automated Response (SOAR)**: Automated incident response using AWS Lambda, firewall integration, and policy adaptation.  
-- **Blockchain-Based Security Logging**: Immutable, tamper-proof security logs stored on a blockchain for forensic validation.  
-- **Federated Learning for Global Threat Intelligence**: AI models trained collaboratively across PostgreSQL security nodes.  
-- **Zero Trust and Post-Quantum Cryptography**: Decentralized identity verification, Zero-Knowledge Proof authentication, and Kyber encryption.  
-- **User Behavior Analytics (UBA)**: Behavioral anomaly detection, risk scoring, and adaptive security policies based on AI insights.  
+- **Security Orchestration and Automated Response (SOAR)**: Automated incident response with firewall integration and policy adaptation.  
+- **Comprehensive Audit Logging**: Configurable audit trails with tamper-proof options.
+- **Performance-Optimized Security**: Carefully balanced security controls with measurable performance impact.
+- **Compliance-Ready**: Mappings to major compliance frameworks including GDPR, PCI-DSS, HIPAA, and SOC2.
 
 ---
 
@@ -22,20 +22,39 @@ git clone https://github.com/YOUR_ORG/postgres-security-ai.git
 cd postgres-security-ai
 ```
 
-### **2. Configure Environment Variables**  
-Copy the `.env.example` file and modify the settings as needed:  
+### **2. Choose Your Security Tier**  
+Select the appropriate security tier based on your requirements:
+- **Basic**: Essential security with minimal performance impact
+- **Standard**: Enhanced security with moderate performance impact
+- **Advanced**: Maximum security with AI-driven protections
+
+### **3. Configure Environment Variables**  
+Copy the `.env.example` file and modify the settings:  
 ```bash
 cp .env.example .env
 nano .env  # Modify PostgreSQL credentials and API keys securely
 ```
 
-### **3. Start Services**  
+### **4. Start Services**  
 Use Docker Compose to run PostgreSQL and security monitoring services:  
 ```bash
 docker-compose up -d
 ```
 
-### **4. Access Services**  
+### **5. Apply Security Tier**
+Apply your chosen security tier:
+```bash
+# For basic security
+make apply-basic-security
+
+# For standard security
+make apply-standard-security
+
+# For advanced security
+make apply-advanced-security
+```
+
+### **6. Access Services**  
 | Service | URL | Authentication |
 |---------|----------------|----------------|
 | PostgreSQL | `localhost:5432` | Credentials from `.env` |
@@ -45,64 +64,103 @@ docker-compose up -d
 
 ---
 
-## **Database Security and Threat Monitoring**  
+## **Security Tiers**
 
-### **Monitoring and Log Analysis**  
+### **Basic Tier**
+Essential security features with minimal performance impact (1-5%):
+- Secure configuration settings
+- Basic audit logging
+- TLS/SSL encryption
+- Role-based access control
+
+### **Standard Tier**
+Comprehensive security suitable for most applications with moderate performance impact (5-15%):
+- All Basic tier features
+- Comprehensive audit logging
+- Query anomaly detection
+- Enhanced monitoring and alerts
+- Role-based access control
+- Sensitive data protection
+
+### **Advanced Tier**
+Maximum security with AI-driven protections with higher performance impact (15-30%):
+- All Standard tier features
+- AI-driven security analysis
+- Machine learning anomaly detection
+- Advanced encryption
+- Real-time threat monitoring
+- Row-level security policies
+- Adaptive security responses
+
+## **Security Assessment and Monitoring**  
+
+### **Threat Detection and Monitoring**  
 - View PostgreSQL security logs:
 ```sql
-SELECT * FROM logs.notification_log ORDER BY logged_at DESC LIMIT 50;
+SELECT * FROM security.audit_log ORDER BY audit_time DESC LIMIT 50;
 ```
-- Analyze user behavior anomalies:
+- Analyze user behavior anomalies (Standard/Advanced tiers):
 ```sql
-SELECT * FROM uba.user_activity_logs WHERE event_type = 'Suspicious Login' ORDER BY event_timestamp DESC;
+SELECT * FROM security_monitoring.anomalies WHERE username = current_user ORDER BY detection_time DESC;
 ```
-- Check detected SQL injection attempts:
+- Check AI security predictions (Advanced tier):
 ```sql
-SELECT * FROM ml.anomaly_predictions WHERE event_type = 'SQL Injection Attempt' ORDER BY detected_at DESC;
+SELECT * FROM ai_security.security_predictions ORDER BY prediction_time DESC LIMIT 10;
 ```
 
-### **Incident Response and SOAR Integration**  
-- Block an identified malicious IP:
+### **Incident Response**  
+- Review suspicious activity (Standard/Advanced tiers):
 ```sql
-SELECT incident_response.block_malicious_ip('192.168.1.100', 'Detected as a high-risk threat');
+SELECT * FROM security_monitoring.check_suspicious_activity();
+```
+- Block a detected malicious IP:
+```sql
+SELECT security.block_ip('192.168.1.100', 'Detected as a high-risk threat');
 ```
 - Disable a compromised user account:
 ```sql
-SELECT security.auto_lock_user('123e4567-e89b-12d3-a456-426614174000');
-```
-- Trigger an AWS Lambda function for automatic response:
-```sql
-SELECT incident_response.trigger_aws_lambda_security_playbook();
+SELECT security.lock_user('suspicious_user');
 ```
 
 ---
 
-## **Security Policy and AI Model Management**  
+## **Performance Testing**
 
-### **Training AI Security Models**  
-Train a deep learning model for threat detection:  
-```sql
-SELECT deep_learning.train_security_model();
-```
-Retrain AI security models using reinforcement learning feedback:  
-```sql
-SELECT rl.retrain_security_ai_model();
+Benchmark the performance impact of each security tier in your environment:
+
+```bash
+./test/performance/benchmark_security_tiers.sh
 ```
 
-### **Federated Learning and Blockchain Security**  
-- Share local AI models with the federated security network:
-```sql
-SELECT federated_learning.send_model_to_fl_node();
-```
-- Publish PostgreSQL security events to blockchain:
-```sql
-SELECT blockchain.publish_security_event();
-```
+This will generate a detailed report showing the performance characteristics of each security tier.
+
+---
+
+## **Compliance and Threat Modeling**
+
+The repository includes comprehensive documentation to assist with compliance:
+
+- [Threat Model](security_tiers/docs/THREAT_MODEL.md) - Detailed STRIDE-based threat analysis
+- [Implementation Guide](security_tiers/docs/IMPLEMENTATION.md) - Step-by-step implementation instructions
+- [Performance Analysis](security_tiers/docs/PERFORMANCE.md) - Detailed performance impact assessment
+
+---
+
+## **Continuous Integration & Security Testing**
+
+The repository includes GitHub Actions workflows for:
+
+- Vulnerability scanning
+- SQL linting and quality checks
+- Static code analysis
+- Performance benchmark testing
+- Security compliance checks
+- PGAudit verification
 
 ---
 
 ## **License**  
-This project is licensed under the **MIT License**. See the `LICENSE` file for details.  
+This project is licensed under the **MIT License**. See the `LICENSE` file for details.
 
 ---
 

@@ -109,3 +109,219 @@ All these components interact and enhance each other in a modular and integrated
 - **Tamper-Proof Logging:** Blockchain ensures audit logs cannot be altered.  
 - **Zero-Trust and Post-Quantum Security:** Implements decentralized identity verification.  
 - **Federated AI Threat Intelligence:** Continually trains models across distributed security nodes.  
+
+# PostgreSQL Deployment Architecture
+
+## Overview
+This document describes the architecture of our PostgreSQL deployment, including infrastructure, security, monitoring, and operational aspects. The system is designed for high availability, security, and maintainability.
+
+## Infrastructure Components
+
+### Database Infrastructure
+- **PostgreSQL Version**: 15
+- **Deployment Model**: Multi-AZ RDS deployment for high availability
+- **Instance Type**: Configurable per environment (e.g., db.t3.medium for dev)
+- **Storage**: Auto-scaling enabled with configurable limits
+- **Backup Strategy**: 
+  - Automated daily snapshots
+  - Transaction logs archived to S3
+  - Point-in-time recovery enabled
+  - Backup retention configurable per environment
+
+### Networking
+- **VPC Configuration**: 
+  - Private subnets for database instances
+  - Security groups with strict access control
+  - VPC endpoints for AWS services
+- **Connectivity**:
+  - SSL/TLS encryption for all connections
+  - IAM authentication supported
+  - Custom endpoint for read replicas
+
+## Security Architecture
+
+### Access Control
+- **Authentication**:
+  - IAM authentication for database access
+  - Strong password policies
+  - SSL/TLS required for all connections
+- **Authorization**:
+  - Row Level Security (RLS) implemented
+  - Role-based access control (RBAC)
+  - Least privilege principle enforced
+
+### Encryption
+- **Data at Rest**:
+  - KMS encryption for database storage
+  - S3 backup encryption with dedicated KMS key
+  - Automated key rotation
+- **Data in Transit**:
+  - SSL/TLS encryption enforced
+  - Custom SSL certificates supported
+  - Perfect Forward Secrecy enabled
+
+### Audit and Compliance
+- **Audit Logging**:
+  - All database actions logged
+  - RLS violation attempts tracked
+  - Failed authentication attempts monitored
+- **Compliance Features**:
+  - Automated compliance reporting
+  - Regular security assessments
+  - Audit trail maintenance
+
+## Monitoring and Observability
+
+### Metrics and Dashboards
+1. **Performance Dashboard**:
+   - Row access rates
+   - Cache hit ratio
+   - Deadlock monitoring
+   - Transaction duration tracking
+
+2. **Resource Utilization Dashboard**:
+   - CPU utilization
+   - Memory usage
+   - Database size trends
+   - Disk I/O monitoring
+
+### Alerting
+1. **Security Alerts**:
+   - RLS violation attempts
+   - Unauthorized access attempts
+   - Privilege escalation events
+   - SSL/TLS configuration changes
+   - Anomalous connection patterns
+
+2. **Performance Alerts**:
+   - High CPU utilization
+   - Memory pressure
+   - Long-running transactions
+   - Deadlock occurrences
+   - Low cache hit ratios
+
+### Logging
+- **Log Management**:
+  - Centralized logging with Fluent Bit
+  - Log shipping to multiple destinations (ELK, Datadog, Splunk)
+  - Structured logging format
+  - Log retention policies
+
+## Database Management
+
+### Maintenance
+- **Automated Tasks**:
+  - Partition management
+  - Vacuum operations
+  - Index maintenance
+  - Statistics updates
+
+### Backup and Recovery
+- **Backup Strategy**:
+  - Daily automated backups
+  - Transaction log archiving
+  - Cross-region backup copies
+  - Backup encryption
+
+- **Recovery Procedures**:
+  - Point-in-time recovery
+  - Cross-region recovery
+  - Backup verification
+
+### High Availability
+- **Multi-AZ Configuration**:
+  - Automated failover
+  - Synchronous replication
+  - Regular failover testing
+  - Read replicas for scaling
+
+## Infrastructure as Code
+
+### Terraform Configuration
+- **Resource Management**:
+  - Infrastructure defined as code
+  - Version-controlled configurations
+  - Environment-specific variables
+  - State management in S3
+
+- **Modular Design**:
+  - Reusable modules
+  - Environment isolation
+  - Consistent tagging
+  - Dependency management
+
+## Operational Procedures
+
+### Deployment
+- **Change Management**:
+  - Infrastructure changes through Terraform
+  - Database changes through migrations
+  - Rollback procedures
+  - Testing requirements
+
+### Scaling
+- **Vertical Scaling**:
+  - Instance type upgrades
+  - Storage expansion
+  - Memory optimization
+
+- **Horizontal Scaling**:
+  - Read replica deployment
+  - Connection pooling
+  - Query routing
+
+### Disaster Recovery
+- **Recovery Plans**:
+  - RTO and RPO definitions
+  - Failover procedures
+  - Data recovery steps
+  - Regular DR testing
+
+## Environment Management
+
+### Environment Separation
+- **Development**:
+  - Reduced resources
+  - Development-specific parameters
+  - Automated cleanup
+  - Snapshot restoration enabled
+
+- **Production**:
+  - High availability enabled
+  - Production-grade resources
+  - Strict security controls
+  - Regular maintenance windows
+
+### Configuration Management
+- **Parameter Groups**:
+  - Environment-specific settings
+  - Performance optimization
+  - Security hardening
+  - Automated validation
+
+## Future Enhancements
+1. **Planned Improvements**:
+   - Enhanced monitoring coverage
+   - Automated performance tuning
+   - Advanced security features
+   - Additional backup strategies
+
+2. **Scalability Enhancements**:
+   - Global database deployment
+   - Advanced connection pooling
+   - Query performance optimization
+   - Automated scaling policies
+
+## Support and Maintenance
+
+### Documentation
+- Architecture documentation
+- Operational procedures
+- Troubleshooting guides
+- Security policies
+
+### Monitoring and Support
+- 24/7 monitoring
+- Incident response procedures
+- Escalation paths
+- Regular health checks

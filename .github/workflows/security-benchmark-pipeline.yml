@@ -1,0 +1,151 @@
+name: PostgreSQL Security Benchmark Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly run
+
+jobs:
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+      
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+  
+  sql-linting:
+    name: SQL Linting and Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install SQLFluff
+        run: pip install sqlfluff
+      
+      - name: Run SQLFluff
+        run: sqlfluff lint --dialect postgres **/*.sql
+  
+  static-analysis:
+    name: Static Code Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: 'python'
+      
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
+  performance-tests:
+    name: Performance Benchmark Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup pgbench
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      
+      - name: Run baseline performance tests
+        run: |
+          PGPASSWORD=postgres pgbench -h localhost -U postgres -i -s 10 test_db
+          PGPASSWORD=postgres pgbench -h localhost -U postgres -c 10 -t 1000 -P 10 test_db > baseline_results.txt
+      
+      - name: Apply security features
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d test_db -f docker/initdb/extensions.sql
+          PGPASSWORD=postgres psql -h localhost -U postgres -d test_db -f docker/initdb/create_schemas.sql
+          PGPASSWORD=postgres psql -h localhost -U postgres -d test_db -f security_tiers/basic/setup.sql
+      
+      - name: Run secured performance tests
+        run: |
+          PGPASSWORD=postgres pgbench -h localhost -U postgres -c 10 -t 1000 -P 10 test_db > secured_results.txt
+      
+      - name: Generate performance comparison
+        run: |
+          echo "Performance impact report" > performance_impact.md
+          echo "=========================" >> performance_impact.md
+          echo "Baseline results:" >> performance_impact.md
+          cat baseline_results.txt >> performance_impact.md
+          echo "Secured results:" >> performance_impact.md
+          cat secured_results.txt >> performance_impact.md
+      
+      - name: Upload performance results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-impact-report
+          path: performance_impact.md
+
+  security-compliance:
+    name: Security Compliance Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install compliance checking tools
+        run: pip install checkov
+      
+      - name: Run Terraform compliance checks
+        run: checkov -d terraform/ --framework terraform
+
+  pgaudit-verification:
+    name: PGAudit Configuration Check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Test pgaudit functionality
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d test_db -c "CREATE EXTENSION IF NOT EXISTS pgaudit;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d test_db -c "SHOW shared_preload_libraries;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d test_db -c "SELECT pg_reload_conf();"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d test_db -c "SELECT name, setting FROM pg_settings WHERE name LIKE 'pgaudit%';" 

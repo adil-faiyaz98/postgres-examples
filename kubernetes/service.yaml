@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-security
+  namespace: postgres-security
+  labels:
+    app: postgres-security
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "5432"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgres
+  selector:
+    app: postgres-security 

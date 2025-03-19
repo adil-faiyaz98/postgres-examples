@@ -1,86 +1,89 @@
-#!/usr/bin/env bash
-
-# PostgreSQL pgTAP Test Runner with HTML Reports & Slack Notifications
-
+#!/bin/bash
 set -e
-set -o pipefail
 
-# Load environment variables from .env if available
-if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
-fi
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
 
-# Default database credentials
-DB_NAME=${DB_NAME:-db_dev}
-DB_USER=${DB_USER:-myuser}
-DB_HOST=${DB_HOST:-localhost}
-TEST_DIR="test/pgTAP"
-PARALLEL_MODE=false
-REPORT_FILE="pgTAP_test_report.html"
-SLACK_WEBHOOK_URL="your-slack-webhook-url"
-FAILED_TESTS=()
-
-# Parse script arguments
-if [[ "$1" == "--parallel" ]]; then
-    PARALLEL_MODE=true
-elif [[ "$1" == "--sequential" ]]; then
-    PARALLEL_MODE=false
-fi
-
-# Ensure pg_prove is installed
-if ! command -v pg_prove &> /dev/null; then
-    echo "pg_prove is not installed. Please install it before running tests."
-    exit 1
-fi
-
-# Start the test execution timer
-start_time=$(date +%s)
-
-echo "Running pgTAP tests against database: $DB_NAME ($DB_HOST)"
-echo "-----------------------------------------------------------"
-
-# Run tests and save results in HTML format
-if [ "$PARALLEL_MODE" = true ]; then
-    echo "Running tests in PARALLEL mode..."
-    pg_prove -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" --ext .sql --html --output "$REPORT_FILE" "$TEST_DIR"/*.sql || FAILED_TESTS+=("pgTAP Failed")
-else
-    echo "Running tests in SEQUENTIAL mode..."
-    for FILE in "$TEST_DIR"/*.sql; do
-        echo "Running: $FILE..."
-        if ! pg_prove -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" "$FILE"; then
-            FAILED_TESTS+=("$FILE")
-        fi
-    done
-fi
-
-# Calculate execution time
-end_time=$(date +%s)
-execution_time=$((end_time - start_time))
-
-echo "-----------------------------------------------------------"
-echo "All tests completed in ${execution_time}s"
-echo "Test report saved to: $REPORT_FILE"
-
-# Send results to Slack
-send_slack_notification() {
-    curl -X POST -H 'Content-type: application/json' --data "{
-        \"text\": \"PostgreSQL Test Summary:\n\nExecution Time: ${execution_time}s\n\nTest Report: $REPORT_FILE\",
-        \"attachments\": [
-            {\"text\": \"Test Status: $(if [ ${#FAILED_TESTS[@]} -ne 0 ]; then echo 'Some tests failed'; else echo 'All tests passed!'; fi)\"}
-        ]
-    }" $SLACK_WEBHOOK_URL
+# Function to run tests with proper output
+run_test() {
+  local test_name=$1
+  local command=$2
+  
+  echo -e "\n${YELLOW}Running test: ${test_name}${NC}"
+  
+  if eval "$command"; then
+    echo -e "${GREEN}✓ Test Passed: ${test_name}${NC}"
+    return 0
+  else
+    echo -e "${RED}✗ Test Failed: ${test_name}${NC}"
+    return 1
+  fi
 }
 
-send_slack_notification
+# Create test results directory
+RESULTS_DIR="test_results"
+mkdir -p $RESULTS_DIR
 
-# Handle failed tests
-if [ ${#FAILED_TESTS[@]} -ne 0 ]; then
-    echo "${#FAILED_TESTS[@]} tests failed:"
-    for test in "${FAILED_TESTS[@]}"; do
-        echo "   - $test"
-    done
-    exit 1
-fi
+echo -e "${YELLOW}Starting Comprehensive Test Suite${NC}"
 
-echo "All tests passed successfully!"
-exit 0
+# 1. Unit Tests (pgTAP)
+echo -e "\n${YELLOW}Running Unit Tests${NC}"
+run_test "pgTAP Tests" "./test/pgTAP/run-all-tests.sh --parallel > $RESULTS_DIR/unit_tests.log 2>&1"
+
+# 2. Integration Tests
+echo -e "\n${YELLOW}Running Integration Tests${NC}"
+run_test "Integration Tests" "./test/integration/integration_test.sh > $RESULTS_DIR/integration_tests.log 2>&1"
+
+# 3. Kubernetes Deployment Tests
+echo -e "\n${YELLOW}Running Kubernetes Tests${NC}"
+run_test "Kubernetes Deployment Tests" "./test/kubernetes/postgres-deployment-test.sh > $RESULTS_DIR/k8s_tests.log 2>&1"
+
+# 4. Infrastructure Tests (Terratest)
+echo -e "\n${YELLOW}Running Infrastructure Tests${NC}"
+run_test "Terratest" "cd test/terratest && go test -v ./... > ../../$RESULTS_DIR/terratest.log 2>&1"
+
+# 5. Performance Tests
+echo -e "\n${YELLOW}Running Performance Tests${NC}"
+run_test "Performance Tests" "./test/performance/benchmark_security_tiers.sh > $RESULTS_DIR/performance_tests.log 2>&1"
+
+# 6. Security Tests
+echo -e "\n${YELLOW}Running Security Tests${NC}"
+run_test "Basic Security Tier Tests" "./test/security/test_basic_tier.sh > $RESULTS_DIR/security_basic.log 2>&1"
+run_test "Standard Security Tier Tests" "./test/security/test_standard_tier.sh > $RESULTS_DIR/security_standard.log 2>&1"
+run_test "Advanced Security Tier Tests" "./test/security/test_advanced_tier.sh > $RESULTS_DIR/security_advanced.log 2>&1"
+
+# 7. Monitoring Tests
+echo -e "\n${YELLOW}Running Monitoring Stack Tests${NC}"
+run_test "Prometheus Tests" "./test/monitoring/test_prometheus.sh > $RESULTS_DIR/prometheus_tests.log 2>&1"
+run_test "Grafana Tests" "./test/monitoring/test_grafana.sh > $RESULTS_DIR/grafana_tests.log 2>&1"
+run_test "Metrics Tests" "./test/monitoring/test_metrics.sh > $RESULTS_DIR/metrics_tests.log 2>&1"
+
+# Generate Test Report
+echo -e "\n${YELLOW}Generating Test Report${NC}"
+cat << EOF > $RESULTS_DIR/test_report.md
+# Test Execution Report
+Date: $(date)
+
+## Test Results Summary
+- Unit Tests: $(grep -q "Test Passed" $RESULTS_DIR/unit_tests.log && echo "✓ Passed" || echo "✗ Failed")
+- Integration Tests: $(grep -q "Test Passed" $RESULTS_DIR/integration_tests.log && echo "✓ Passed" || echo "✗ Failed")
+- Kubernetes Tests: $(grep -q "Test Passed" $RESULTS_DIR/k8s_tests.log && echo "✓ Passed" || echo "✗ Failed")
+- Infrastructure Tests: $(grep -q "PASS" $RESULTS_DIR/terratest.log && echo "✓ Passed" || echo "✗ Failed")
+- Performance Tests: $(grep -q "Test Passed" $RESULTS_DIR/performance_tests.log && echo "✓ Passed" || echo "✗ Failed")
+- Security Tests:
+  - Basic Tier: $(grep -q "Test Passed" $RESULTS_DIR/security_basic.log && echo "✓ Passed" || echo "✗ Failed")
+  - Standard Tier: $(grep -q "Test Passed" $RESULTS_DIR/security_standard.log && echo "✓ Passed" || echo "✗ Failed")
+  - Advanced Tier: $(grep -q "Test Passed" $RESULTS_DIR/security_advanced.log && echo "✓ Passed" || echo "✗ Failed")
+- Monitoring Tests:
+  - Prometheus: $(grep -q "Test Passed" $RESULTS_DIR/prometheus_tests.log && echo "✓ Passed" || echo "✗ Failed")
+  - Grafana: $(grep -q "Test Passed" $RESULTS_DIR/grafana_tests.log && echo "✓ Passed" || echo "✗ Failed")
+  - Metrics: $(grep -q "Test Passed" $RESULTS_DIR/metrics_tests.log && echo "✓ Passed" || echo "✗ Failed")
+
+## Detailed Test Logs
+See individual log files in the $RESULTS_DIR directory for detailed test output.
+EOF
+
+echo -e "${GREEN}Test execution complete! Check $RESULTS_DIR/test_report.md for results.${NC}"

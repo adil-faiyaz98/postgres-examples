@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-security-config
+  namespace: postgres-security
+data:
+  SECURITY_TIER: "advanced"
+  PG_AUDIT_LOG: "write,ddl,role,auth,misc"
+  LOG_MIN_DURATION_STATEMENT: "0"
+  LOG_CONNECTIONS: "on"
+  LOG_DISCONNECTIONS: "on"
+  SSL_CERT_FILE: "/etc/certs/server.crt"
+  SSL_KEY_FILE: "/etc/certs/server.key"
+  # Security settings
+  pg_hba.conf: |
+    # TYPE  DATABASE        USER            ADDRESS                 METHOD
+    local   all             postgres                                peer
+    hostssl all             all             0.0.0.0/0               scram-sha-256
+    hostnossl all           all             0.0.0.0/0               reject
+  
+  # Custom postgresql.conf settings
+  postgresql-security.conf: |
+    # Security settings
+    ssl = on
+    ssl_prefer_server_ciphers = on
+    ssl_ciphers = 'HIGH:!aNULL:!MD5'
+    ssl_cert_file = '/etc/certs/server.crt'
+    ssl_key_file = '/etc/certs/server.key'
+    
+    # Audit logging
+    shared_preload_libraries = 'pgaudit'
+    pgaudit.log = 'write,ddl,role,auth,misc'
+    
+    # Connection settings
+    log_connections = on
+    log_disconnections = on
+    log_statement = 'all'
+    log_min_duration_statement = 0 

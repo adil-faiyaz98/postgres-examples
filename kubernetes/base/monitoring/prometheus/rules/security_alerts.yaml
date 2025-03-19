@@ -1,0 +1,62 @@
+groups:
+- name: PostgresSecurityAlerts
+  rules:
+  - alert: PostgresRLSViolationAttempt
+    expr: rate(pg_stat_database_rls_policy_violations_total[5m]) > 0
+    for: 1m
+    labels:
+      severity: critical
+      category: security
+    annotations:
+      summary: "RLS Policy Violation Attempts Detected"
+      description: "Row Level Security policy violations detected in the last 5 minutes"
+      runbook_url: "https://wiki.example.com/runbooks/postgresql/rls-violation"
+      recommended_action: "Check security logs and investigate unauthorized access attempts"
+
+  - alert: PostgresUnauthorizedAccessAttempt
+    expr: rate(pg_stat_database_connection_rejected_total{reason="auth"}[5m]) > 0
+    for: 1m
+    labels:
+      severity: critical
+      category: security
+    annotations:
+      summary: "Unauthorized Access Attempts Detected"
+      description: "Multiple failed login attempts detected in the last 5 minutes"
+      recommended_action: "Review authentication logs and check for potential brute force attacks"
+
+  - alert: PostgresPrivilegeEscalation
+    expr: changes(pg_stat_database_superuser_grants_total[1h]) > 0
+    for: 1m
+    labels:
+      severity: critical
+      category: security
+    annotations:
+      summary: "Privilege Escalation Detected"
+      description: "Changes in superuser grants detected in the last hour"
+      recommended_action: "Review security logs for unauthorized privilege changes"
+
+  - alert: PostgresSSLDisabled
+    expr: pg_settings_ssl{setting="off"} > 0
+    for: 5m
+    labels:
+      severity: critical
+      category: security
+    annotations:
+      summary: "SSL/TLS is Disabled"
+      description: "PostgreSQL instance is running without SSL/TLS encryption"
+      recommended_action: "Enable SSL immediately and review security configuration"
+
+  - alert: PostgresAnomalousConnections
+    expr: |
+      (
+        rate(pg_stat_database_numbackends[5m])
+        > 2 * avg_over_time(pg_stat_database_numbackends[24h])
+      )
+    for: 15m
+    labels:
+      severity: warning
+      category: security
+    annotations:
+      summary: "Anomalous Connection Pattern Detected"
+      description: "Unusual spike in database connections detected"
+      recommended_action: "Review connection sources and investigate potential security issues" 

@@ -1,0 +1,99 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zero-trust-default-deny
+  namespace: postgres-security
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zero-trust-postgres-policy
+  namespace: postgres-security
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres-security
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          role: app-server
+      namespaceSelector:
+        matchLabels:
+          purpose: application
+    - podSelector:
+        matchLabels:
+          role: monitoring
+      namespaceSelector:
+        matchLabels:
+          purpose: monitoring
+    ports:
+    - protocol: TCP
+      port: 5432
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+  - to:
+    - ipBlock:
+        cidr: 169.254.169.254/32
+    ports:
+    - protocol: TCP
+      port: 80
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+        - 169.254.0.0/16
+    ports:
+    - protocol: TCP
+      port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zero-trust-monitoring-policy
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      role: monitoring
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 9090
+    - protocol: TCP
+      port: 3000
+  egress:
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 5432
+    - protocol: TCP
+      port: 9187

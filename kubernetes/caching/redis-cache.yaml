@@ -1,0 +1,248 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cache
+  namespace: postgres-security
+spec:
+  serviceName: redis-cache
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redis-cache
+  template:
+    metadata:
+      labels:
+        app: redis-cache
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+      containers:
+      - name: redis
+        image: redis:7.0-alpine
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+        command:
+        - redis-server
+        - /etc/redis/redis.conf
+        ports:
+        - containerPort: 6379
+          name: redis
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        - name: redis-config
+          mountPath: /etc/redis
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1
+            memory: 2Gi
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 15
+          periodSeconds: 20
+      volumes:
+      - name: redis-config
+        configMap:
+          name: redis-config
+  volumeClaimTemplates:
+  - metadata:
+      name: redis-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "standard"
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: postgres-security
+data:
+  redis.conf: |
+    # Redis configuration for caching
+    
+    # Network
+    bind 0.0.0.0
+    protected-mode yes
+    port 6379
+    tcp-backlog 511
+    timeout 0
+    tcp-keepalive 300
+    
+    # General
+    daemonize no
+    supervised no
+    pidfile /var/run/redis_6379.pid
+    loglevel notice
+    logfile ""
+    databases 16
+    
+    # Snapshotting
+    save 900 1
+    save 300 10
+    save 60 10000
+    stop-writes-on-bgsave-error yes
+    rdbcompression yes
+    rdbchecksum yes
+    dbfilename dump.rdb
+    dir /data
+    
+    # Security
+    requirepass ${REDIS_PASSWORD}
+    
+    # Memory Management
+    maxmemory 1gb
+    maxmemory-policy allkeys-lru
+    maxmemory-samples 5
+    
+    # Lazy Freeing
+    lazyfree-lazy-eviction yes
+    lazyfree-lazy-expire yes
+    lazyfree-lazy-server-del yes
+    replica-lazy-flush yes
+    
+    # Advanced Config
+    hash-max-ziplist-entries 512
+    hash-max-ziplist-value 64
+    list-max-ziplist-size -2
+    list-compress-depth 0
+    set-max-intset-entries 512
+    zset-max-ziplist-entries 128
+    zset-max-ziplist-value 64
+    hll-sparse-max-bytes 3000
+    stream-node-max-bytes 4096
+    stream-node-max-entries 100
+    activerehashing yes
+    client-output-buffer-limit normal 0 0 0
+    client-output-buffer-limit replica 256mb 64mb 60
+    client-output-buffer-limit pubsub 32mb 8mb 60
+    hz 10
+    dynamic-hz yes
+    aof-rewrite-incremental-fsync yes
+    rdb-save-incremental-fsync yes
+    
+  pg-redis-integration.sql: |
+    -- Create extension for Redis integration
+    CREATE EXTENSION IF NOT EXISTS redis_fdw;
+    
+    -- Create Redis server connection
+    CREATE SERVER redis_server
+      FOREIGN DATA WRAPPER redis_fdw
+      OPTIONS (address 'redis-cache', port '6379', password 'redis_password');
+    
+    -- Create user mapping
+    CREATE USER MAPPING FOR postgres
+      SERVER redis_server
+      OPTIONS (user 'default', password 'redis_password');
+    
+    -- Create foreign table for cache access
+    CREATE FOREIGN TABLE redis_cache (
+      key text,
+      value text
+    ) SERVER redis_server
+      OPTIONS (database '0', tabletype 'hash');
+    
+    -- Create schema for caching functions
+    CREATE SCHEMA IF NOT EXISTS cache;
+    
+    -- Create function to get cached value
+    CREATE OR REPLACE FUNCTION cache.get_cached_value(p_key text)
+    RETURNS text AS $$
+    DECLARE
+      v_value text;
+    BEGIN
+      SELECT value INTO v_value FROM redis_cache WHERE key = p_key;
+      RETURN v_value;
+    EXCEPTION
+      WHEN OTHERS THEN
+        RETURN NULL;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Create function to set cached value
+    CREATE OR REPLACE FUNCTION cache.set_cached_value(p_key text, p_value text)
+    RETURNS void AS $$
+    BEGIN
+      -- Delete existing key if it exists
+      DELETE FROM redis_cache WHERE key = p_key;
+      
+      -- Insert new key-value pair
+      INSERT INTO redis_cache (key, value) VALUES (p_key, p_value);
+    EXCEPTION
+      WHEN OTHERS THEN
+        RAISE NOTICE 'Error setting cache: %', SQLERRM;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Create function to delete cached value
+    CREATE OR REPLACE FUNCTION cache.delete_cached_value(p_key text)
+    RETURNS void AS $$
+    BEGIN
+      DELETE FROM redis_cache WHERE key = p_key;
+    EXCEPTION
+      WHEN OTHERS THEN
+        RAISE NOTICE 'Error deleting cache: %', SQLERRM;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Create function to cache query results
+    CREATE OR REPLACE FUNCTION cache.cache_query(p_query text, p_key text, p_ttl_seconds integer DEFAULT 300)
+    RETURNS text AS $$
+    DECLARE
+      v_result text;
+    BEGIN
+      -- Try to get from cache first
+      v_result := cache.get_cached_value(p_key);
+      
+      -- If not in cache, execute query and cache result
+      IF v_result IS NULL THEN
+        EXECUTE p_query INTO v_result;
+        PERFORM cache.set_cached_value(p_key, v_result);
+        
+        -- Set TTL (requires Redis commands)
+        PERFORM redis_fdw_command('EXPIRE', ARRAY[p_key, p_ttl_seconds::text]);
+      END IF;
+      
+      RETURN v_result;
+    END;
+    $$ LANGUAGE plpgsql;
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cache
+  namespace: postgres-security
+  labels:
+    app: redis-cache
+spec:
+  selector:
+    app: redis-cache
+  ports:
+  - port: 6379
+    targetPort: 6379
+    name: redis
+  clusterIP: None

@@ -1,0 +1,211 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-siem-connector
+  namespace: security-monitoring
+  labels:
+    app: postgres-siem-connector
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: postgres-siem-connector
+  template:
+    metadata:
+      labels:
+        app: postgres-siem-connector
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: siem-connector
+        image: postgres-siem-connector:latest
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+        env:
+        - name: POSTGRES_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_HOST
+        - name: POSTGRES_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_PORT
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: password
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: database
+        - name: SIEM_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: siem-config
+              key: endpoint
+        - name: SIEM_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: siem-credentials
+              key: api-key
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: config-volume
+        configMap:
+          name: siem-connector-config
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: siem-connector-config
+  namespace: security-monitoring
+data:
+  config.yaml: |
+    connector:
+      name: postgres-siem-connector
+      version: 1.0.0
+    
+    sources:
+      - type: postgres
+        name: postgres-audit-logs
+        query: |
+          SELECT * FROM security.audit_log 
+          WHERE audit_time > :last_run_time
+          ORDER BY audit_time ASC
+        interval: 60
+        mapping:
+          timestamp: audit_time
+          user: user_name
+          event_type: event_type
+          object_type: object_type
+          object_name: object_name
+          query: query
+      
+      - type: postgres
+        name: postgres-anomalies
+        query: |
+          SELECT * FROM security_monitoring.anomalies
+          WHERE detection_time > :last_run_time
+          ORDER BY detection_time ASC
+        interval: 60
+        mapping:
+          timestamp: detection_time
+          user: username
+          event_type: 'ANOMALY'
+          severity: 
+            field: deviation_factor
+            ranges:
+              - min: 0
+                max: 0.5
+                value: 'LOW'
+              - min: 0.5
+                max: 0.8
+                value: 'MEDIUM'
+              - min: 0.8
+                max: 999
+                value: 'HIGH'
+          details: query_text
+    
+    destinations:
+      - type: elasticsearch
+        name: elasticsearch-siem
+        enabled: ${ELASTICSEARCH_ENABLED:-false}
+        config:
+          url: ${ELASTICSEARCH_URL}
+          index: postgres-security
+          username: ${ELASTICSEARCH_USERNAME}
+          password: ${ELASTICSEARCH_PASSWORD}
+      
+      - type: splunk
+        name: splunk-siem
+        enabled: ${SPLUNK_ENABLED:-false}
+        config:
+          url: ${SPLUNK_URL}
+          token: ${SPLUNK_TOKEN}
+          index: postgres-security
+          sourcetype: postgres:security
+      
+      - type: datadog
+        name: datadog-siem
+        enabled: ${DATADOG_ENABLED:-false}
+        config:
+          api_key: ${DATADOG_API_KEY}
+          app_key: ${DATADOG_APP_KEY}
+          service: postgres-security
+      
+      - type: aws-security-hub
+        name: aws-security-hub
+        enabled: ${AWS_SECURITY_HUB_ENABLED:-false}
+        config:
+          region: ${AWS_REGION}
+          account_id: ${AWS_ACCOUNT_ID}
+    
+    enrichment:
+      - type: geo-ip
+        field: client_ip
+        target: geo_location
+      
+      - type: user-context
+        field: user_name
+        target: user_context
+        source:
+          type: postgres
+          query: |
+            SELECT role, department, email
+            FROM security.users
+            WHERE username = :field_value
+    
+    normalization:
+      - field: event_type
+        mapping:
+          INSERT: 'create'
+          UPDATE: 'modify'
+          DELETE: 'delete'
+          SELECT: 'read'

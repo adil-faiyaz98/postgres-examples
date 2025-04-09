@@ -1,0 +1,66 @@
+version: 2
+updates:
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    open-pull-requests-limit: 10
+
+  # Maintain dependencies for Docker
+  - package-ecosystem: "docker"
+    directory: "/docker"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    open-pull-requests-limit: 10
+
+  # Maintain dependencies for Terraform
+  - package-ecosystem: "terraform"
+    directory: "/terraform"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "terraform"
+      include: "scope"
+    open-pull-requests-limit: 10
+
+  # Maintain dependencies for Python
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "python"
+      include: "scope"
+    open-pull-requests-limit: 10
+
+  # Maintain dependencies for npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "js"
+      include: "scope"
+    open-pull-requests-limit: 10

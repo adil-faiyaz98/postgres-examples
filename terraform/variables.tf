@@ -55,6 +55,17 @@ variable "sns_topic_arn" {
   type        = string
 }
 
+variable "oidc_provider" {
+  description = "OIDC provider URL for EKS cluster (without https://)"
+  type        = string
+}
+
+variable "db_name" {
+  description = "Name of the PostgreSQL database"
+  type        = string
+  default     = "postgres"
+}
+
 # Database Parameters
 variable "max_connections" {
   description = "Maximum number of database connections"
@@ -84,4 +95,4 @@ variable "effective_cache_size" {
   description = "How much memory is available for disk caching"
   type        = string
   default     = "12GB"
-} 
+}

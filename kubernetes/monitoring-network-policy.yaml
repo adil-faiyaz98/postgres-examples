@@ -1,0 +1,74 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-network-policy
+  namespace: monitoring
+  labels:
+    app: postgres-security
+    tier: monitoring
+    security-level: high
+spec:
+  podSelector:
+    matchLabels:
+      role: monitoring
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow traffic from within the monitoring namespace
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 9090  # Prometheus
+    - protocol: TCP
+      port: 3000  # Grafana
+    - protocol: TCP
+      port: 9093  # Alertmanager
+    - protocol: TCP
+      port: 9100  # Node Exporter
+  # Allow traffic from the postgres namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: postgres-security
+    ports:
+    - protocol: TCP
+      port: 9090  # Prometheus
+    - protocol: TCP
+      port: 3000  # Grafana
+  egress:
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+  # Allow scraping metrics from postgres namespace
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: postgres-security
+    ports:
+    - protocol: TCP
+      port: 5432  # PostgreSQL
+    - protocol: TCP
+      port: 9187  # PostgreSQL Exporter
+  # Allow sending alerts
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS for alerting

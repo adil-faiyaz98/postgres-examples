@@ -1,0 +1,109 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPSPCapabilities
+metadata:
+  name: postgres-psp-capabilities
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces:
+      - "postgres-security"
+  parameters:
+    requiredDropCapabilities:
+      - "ALL"
+    allowedCapabilities: []
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPSPPrivilegedContainer
+metadata:
+  name: postgres-psp-privileged
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces:
+      - "postgres-security"
+  parameters:
+    privileged: false
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPSPAllowPrivilegeEscalation
+metadata:
+  name: postgres-psp-privilege-escalation
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces:
+      - "postgres-security"
+  parameters:
+    allowPrivilegeEscalation: false
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPSPHostNamespace
+metadata:
+  name: postgres-psp-host-namespace
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces:
+      - "postgres-security"
+  parameters:
+    hostNamespace: false
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPSPHostNetworkingPorts
+metadata:
+  name: postgres-psp-host-network-ports
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces:
+      - "postgres-security"
+  parameters:
+    hostNetwork: false
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPSPVolumeTypes
+metadata:
+  name: postgres-psp-volume-types
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces:
+      - "postgres-security"
+  parameters:
+    volumes:
+      - configMap
+      - emptyDir
+      - projected
+      - secret
+      - downwardAPI
+      - persistentVolumeClaim
+      - csi
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPSPSeccompProfile
+metadata:
+  name: postgres-psp-seccomp-profile
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces:
+      - "postgres-security"
+  parameters:
+    allowedProfiles:
+      - "runtime/default"
+      - "docker/default"
+      - "localhost/*"

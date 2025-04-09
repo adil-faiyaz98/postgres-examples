@@ -1,0 +1,596 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+  namespace: postgres-security
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+      containers:
+      - name: vault
+        image: vault:1.13.3
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            add:
+            - IPC_LOCK
+            drop:
+            - ALL
+          privileged: false
+        ports:
+        - containerPort: 8200
+          name: vault-api
+        - containerPort: 8201
+          name: vault-cluster
+        env:
+        - name: VAULT_DEV_ROOT_TOKEN_ID
+          valueFrom:
+            secretKeyRef:
+              name: vault-credentials
+              key: root_token
+        - name: VAULT_DEV_LISTEN_ADDRESS
+          value: "0.0.0.0:8200"
+        - name: VAULT_ADDR
+          value: "http://127.0.0.1:8200"
+        volumeMounts:
+        - name: vault-config
+          mountPath: /vault/config
+        - name: vault-data
+          mountPath: /vault/data
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 1
+            memory: 1Gi
+        readinessProbe:
+          httpGet:
+            path: /v1/sys/health
+            port: 8200
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /v1/sys/health
+            port: 8200
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 20
+      volumes:
+      - name: vault-config
+        configMap:
+          name: vault-config
+      - name: vault-data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-config
+  namespace: postgres-security
+data:
+  vault.hcl: |
+    ui = true
+    
+    storage "file" {
+      path = "/vault/data"
+    }
+    
+    listener "tcp" {
+      address = "0.0.0.0:8200"
+      tls_disable = 1
+    }
+    
+    api_addr = "http://vault:8200"
+    cluster_addr = "http://vault:8201"
+    
+    disable_mlock = true
+    
+  vault-init.sh: |
+    #!/bin/sh
+    set -e
+    
+    # Initialize Vault if not already initialized
+    if ! vault status > /dev/null 2>&1; then
+      echo "Initializing Vault..."
+      vault operator init -key-shares=1 -key-threshold=1 -format=json > /tmp/vault-init.json
+      
+      # Unseal Vault
+      VAULT_UNSEAL_KEY=$(cat /tmp/vault-init.json | jq -r '.unseal_keys_b64[0]')
+      vault operator unseal $VAULT_UNSEAL_KEY
+      
+      # Set root token
+      VAULT_TOKEN=$(cat /tmp/vault-init.json | jq -r '.root_token')
+      export VAULT_TOKEN
+      
+      # Enable audit logging
+      vault audit enable file file_path=/vault/logs/audit.log
+      
+      # Enable secrets engines
+      vault secrets enable -path=secret kv-v2
+      vault secrets enable transit
+      vault secrets enable database
+      
+      # Configure transit engine for encryption
+      vault write -f transit/keys/postgres-encryption
+      vault write transit/keys/postgres-encryption/config allow_plaintext_backup=true
+      
+      # Configure database engine for dynamic credentials
+      vault write database/config/postgres \
+        plugin_name=postgresql-database-plugin \
+        allowed_roles="readonly,readwrite,admin" \
+        connection_url="postgresql://{{username}}:{{password}}@postgres-master:5432/postgres?sslmode=require" \
+        username="vault" \
+        password="vault_password"
+      
+      # Create database roles
+      vault write database/roles/readonly \
+        db_name=postgres \
+        creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; \
+                            GRANT SELECT ON ALL TABLES IN SCHEMA public TO \"{{name}}\";" \
+        default_ttl="1h" \
+        max_ttl="24h"
+      
+      vault write database/roles/readwrite \
+        db_name=postgres \
+        creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; \
+                            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO \"{{name}}\";" \
+        default_ttl="1h" \
+        max_ttl="24h"
+      
+      # Create policies
+      vault policy write postgres-readonly -<<EOF
+      path "secret/data/postgres/*" {
+        capabilities = ["read", "list"]
+      }
+      
+      path "transit/decrypt/postgres-encryption" {
+        capabilities = ["update"]
+      }
+      
+      path "database/creds/readonly" {
+        capabilities = ["read"]
+      }
+      EOF
+      
+      vault policy write postgres-readwrite -<<EOF
+      path "secret/data/postgres/*" {
+        capabilities = ["create", "read", "update", "delete", "list"]
+      }
+      
+      path "transit/encrypt/postgres-encryption" {
+        capabilities = ["update"]
+      }
+      
+      path "transit/decrypt/postgres-encryption" {
+        capabilities = ["update"]
+      }
+      
+      path "database/creds/readwrite" {
+        capabilities = ["read"]
+      }
+      EOF
+      
+      # Create AppRole authentication
+      vault auth enable approle
+      
+      vault write auth/approle/role/postgres-readonly \
+        secret_id_ttl=0 \
+        token_ttl=1h \
+        token_max_ttl=24h \
+        policies=postgres-readonly
+      
+      vault write auth/approle/role/postgres-readwrite \
+        secret_id_ttl=0 \
+        token_ttl=1h \
+        token_max_ttl=24h \
+        policies=postgres-readwrite
+      
+      # Get role IDs and secret IDs
+      READONLY_ROLE_ID=$(vault read -format=json auth/approle/role/postgres-readonly/role-id | jq -r '.data.role_id')
+      READONLY_SECRET_ID=$(vault write -format=json -f auth/approle/role/postgres-readonly/secret-id | jq -r '.data.secret_id')
+      
+      READWRITE_ROLE_ID=$(vault read -format=json auth/approle/role/postgres-readwrite/role-id | jq -r '.data.role_id')
+      READWRITE_SECRET_ID=$(vault write -format=json -f auth/approle/role/postgres-readwrite/secret-id | jq -r '.data.secret_id')
+      
+      # Store role IDs and secret IDs in Kubernetes secrets
+      kubectl create secret generic vault-approle-readonly \
+        --from-literal=role_id=$READONLY_ROLE_ID \
+        --from-literal=secret_id=$READONLY_SECRET_ID \
+        -n postgres-security
+      
+      kubectl create secret generic vault-approle-readwrite \
+        --from-literal=role_id=$READWRITE_ROLE_ID \
+        --from-literal=secret_id=$READWRITE_SECRET_ID \
+        -n postgres-security
+      
+      echo "Vault initialization complete!"
+    else
+      echo "Vault is already initialized."
+    fi
+    
+  pg-vault-integration.sql: |
+    -- Create extension for Vault integration
+    CREATE EXTENSION IF NOT EXISTS http;
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    
+    -- Create schema for key management
+    CREATE SCHEMA IF NOT EXISTS key_management;
+    
+    -- Create function to encrypt data using Vault Transit
+    CREATE OR REPLACE FUNCTION key_management.encrypt_with_vault(
+      p_plaintext text,
+      p_key_name text DEFAULT 'postgres-encryption',
+      p_vault_token text DEFAULT NULL
+    ) RETURNS text AS $$
+    DECLARE
+      v_url text;
+      v_payload jsonb;
+      v_headers jsonb;
+      v_response jsonb;
+      v_ciphertext text;
+      v_token text;
+    BEGIN
+      -- Set Vault URL
+      v_url := 'http://vault:8200/v1/transit/encrypt/' || p_key_name;
+      
+      -- Get Vault token
+      IF p_vault_token IS NULL THEN
+        v_token := current_setting('app.vault_token', true);
+        IF v_token IS NULL THEN
+          RAISE EXCEPTION 'No Vault token provided or found in app.vault_token';
+        END IF;
+      ELSE
+        v_token := p_vault_token;
+      END IF;
+      
+      -- Prepare payload
+      v_payload := jsonb_build_object(
+        'plaintext', encode(p_plaintext::bytea, 'base64')
+      );
+      
+      -- Prepare headers
+      v_headers := jsonb_build_object(
+        'X-Vault-Token', v_token,
+        'Content-Type', 'application/json'
+      );
+      
+      -- Make request to Vault
+      SELECT content::jsonb INTO v_response
+      FROM http_post(
+        v_url,
+        v_payload::text,
+        'application/json',
+        NULL,
+        array[
+          ('X-Vault-Token', v_token),
+          ('Content-Type', 'application/json')
+        ]
+      );
+      
+      -- Extract ciphertext
+      v_ciphertext := v_response->'data'->>'ciphertext';
+      
+      RETURN v_ciphertext;
+    EXCEPTION
+      WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error encrypting data with Vault: %', SQLERRM;
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;
+    
+    -- Create function to decrypt data using Vault Transit
+    CREATE OR REPLACE FUNCTION key_management.decrypt_with_vault(
+      p_ciphertext text,
+      p_key_name text DEFAULT 'postgres-encryption',
+      p_vault_token text DEFAULT NULL
+    ) RETURNS text AS $$
+    DECLARE
+      v_url text;
+      v_payload jsonb;
+      v_headers jsonb;
+      v_response jsonb;
+      v_plaintext text;
+      v_token text;
+    BEGIN
+      -- Set Vault URL
+      v_url := 'http://vault:8200/v1/transit/decrypt/' || p_key_name;
+      
+      -- Get Vault token
+      IF p_vault_token IS NULL THEN
+        v_token := current_setting('app.vault_token', true);
+        IF v_token IS NULL THEN
+          RAISE EXCEPTION 'No Vault token provided or found in app.vault_token';
+        END IF;
+      ELSE
+        v_token := p_vault_token;
+      END IF;
+      
+      -- Prepare payload
+      v_payload := jsonb_build_object(
+        'ciphertext', p_ciphertext
+      );
+      
+      -- Prepare headers
+      v_headers := jsonb_build_object(
+        'X-Vault-Token', v_token,
+        'Content-Type', 'application/json'
+      );
+      
+      -- Make request to Vault
+      SELECT content::jsonb INTO v_response
+      FROM http_post(
+        v_url,
+        v_payload::text,
+        'application/json',
+        NULL,
+        array[
+          ('X-Vault-Token', v_token),
+          ('Content-Type', 'application/json')
+        ]
+      );
+      
+      -- Extract plaintext and decode from base64
+      v_plaintext := convert_from(decode(v_response->'data'->>'plaintext', 'base64'), 'UTF8');
+      
+      RETURN v_plaintext;
+    EXCEPTION
+      WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error decrypting data with Vault: %', SQLERRM;
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;
+    
+    -- Create function to rotate encryption keys
+    CREATE OR REPLACE FUNCTION key_management.rotate_encryption_key(
+      p_key_name text DEFAULT 'postgres-encryption',
+      p_vault_token text DEFAULT NULL
+    ) RETURNS boolean AS $$
+    DECLARE
+      v_url text;
+      v_headers jsonb;
+      v_response jsonb;
+      v_token text;
+    BEGIN
+      -- Set Vault URL
+      v_url := 'http://vault:8200/v1/transit/keys/' || p_key_name || '/rotate';
+      
+      -- Get Vault token
+      IF p_vault_token IS NULL THEN
+        v_token := current_setting('app.vault_token', true);
+        IF v_token IS NULL THEN
+          RAISE EXCEPTION 'No Vault token provided or found in app.vault_token';
+        END IF;
+      ELSE
+        v_token := p_vault_token;
+      END IF;
+      
+      -- Prepare headers
+      v_headers := jsonb_build_object(
+        'X-Vault-Token', v_token,
+        'Content-Type', 'application/json'
+      );
+      
+      -- Make request to Vault
+      PERFORM http_post(
+        v_url,
+        '{}',
+        'application/json',
+        NULL,
+        array[
+          ('X-Vault-Token', v_token),
+          ('Content-Type', 'application/json')
+        ]
+      );
+      
+      -- Log key rotation
+      INSERT INTO logs.notification_log (
+        event_type, severity, username, message
+      ) VALUES (
+        'KEY_ROTATION', 'INFO', current_user, 'Rotated encryption key: ' || p_key_name
+      );
+      
+      RETURN true;
+    EXCEPTION
+      WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error rotating encryption key with Vault: %', SQLERRM;
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;
+    
+    -- Create function to get dynamic database credentials
+    CREATE OR REPLACE FUNCTION key_management.get_dynamic_credentials(
+      p_role text DEFAULT 'readonly',
+      p_vault_token text DEFAULT NULL
+    ) RETURNS jsonb AS $$
+    DECLARE
+      v_url text;
+      v_headers jsonb;
+      v_response jsonb;
+      v_token text;
+    BEGIN
+      -- Set Vault URL
+      v_url := 'http://vault:8200/v1/database/creds/' || p_role;
+      
+      -- Get Vault token
+      IF p_vault_token IS NULL THEN
+        v_token := current_setting('app.vault_token', true);
+        IF v_token IS NULL THEN
+          RAISE EXCEPTION 'No Vault token provided or found in app.vault_token';
+        END IF;
+      ELSE
+        v_token := p_vault_token;
+      END IF;
+      
+      -- Prepare headers
+      v_headers := jsonb_build_object(
+        'X-Vault-Token', v_token,
+        'Content-Type', 'application/json'
+      );
+      
+      -- Make request to Vault
+      SELECT content::jsonb INTO v_response
+      FROM http_get(
+        v_url,
+        NULL,
+        array[
+          ('X-Vault-Token', v_token)
+        ]
+      );
+      
+      -- Return credentials
+      RETURN v_response->'data';
+    EXCEPTION
+      WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error getting dynamic credentials from Vault: %', SQLERRM;
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;
+    
+    -- Create function to authenticate with Vault using AppRole
+    CREATE OR REPLACE FUNCTION key_management.vault_approle_login(
+      p_role_id text,
+      p_secret_id text
+    ) RETURNS text AS $$
+    DECLARE
+      v_url text;
+      v_payload jsonb;
+      v_response jsonb;
+      v_token text;
+    BEGIN
+      -- Set Vault URL
+      v_url := 'http://vault:8200/v1/auth/approle/login';
+      
+      -- Prepare payload
+      v_payload := jsonb_build_object(
+        'role_id', p_role_id,
+        'secret_id', p_secret_id
+      );
+      
+      -- Make request to Vault
+      SELECT content::jsonb INTO v_response
+      FROM http_post(
+        v_url,
+        v_payload::text,
+        'application/json'
+      );
+      
+      -- Extract token
+      v_token := v_response->'auth'->>'client_token';
+      
+      -- Log authentication
+      INSERT INTO logs.notification_log (
+        event_type, severity, username, message
+      ) VALUES (
+        'VAULT_AUTH', 'INFO', current_user, 'Authenticated with Vault using AppRole'
+      );
+      
+      RETURN v_token;
+    EXCEPTION
+      WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error authenticating with Vault: %', SQLERRM;
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;
+    
+    -- Grant permissions
+    GRANT USAGE ON SCHEMA key_management TO app_user, security_admin;
+    GRANT EXECUTE ON FUNCTION key_management.encrypt_with_vault TO app_user, security_admin;
+    GRANT EXECUTE ON FUNCTION key_management.decrypt_with_vault TO app_user, security_admin;
+    GRANT EXECUTE ON FUNCTION key_management.rotate_encryption_key TO security_admin;
+    GRANT EXECUTE ON FUNCTION key_management.get_dynamic_credentials TO security_admin;
+    GRANT EXECUTE ON FUNCTION key_management.vault_approle_login TO app_user, security_admin;
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: postgres-security
+  labels:
+    app: vault
+spec:
+  selector:
+    app: vault
+  ports:
+  - port: 8200
+    targetPort: 8200
+    name: vault-api
+  - port: 8201
+    targetPort: 8201
+    name: vault-cluster
+  type: ClusterIP
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vault-key-rotation
+  namespace: postgres-security
+spec:
+  schedule: "0 0 * * 0"  # Weekly on Sunday at midnight
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          securityContext:
+            fsGroup: 1000
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+          containers:
+          - name: key-rotation
+            image: postgres:15.4-alpine
+            imagePullPolicy: Always
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                - ALL
+              privileged: false
+            env:
+            - name: PGHOST
+              value: postgres-master
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              value: postgres
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vault-credentials
+                  key: root_token
+            command:
+            - /bin/sh
+            - -c
+            - |
+              psql -c "SET app.vault_token = '$VAULT_TOKEN'; SELECT key_management.rotate_encryption_key();"
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 200m
+                memory: 256Mi
+          restartPolicy: OnFailure

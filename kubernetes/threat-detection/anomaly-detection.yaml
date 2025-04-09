@@ -1,0 +1,195 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-anomaly-detection
+  namespace: security-monitoring
+  labels:
+    app: postgres-anomaly-detection
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: postgres-anomaly-detection
+  template:
+    metadata:
+      labels:
+        app: postgres-anomaly-detection
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: anomaly-detection
+        image: postgres-anomaly-detection:latest
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: POSTGRES_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_HOST
+        - name: POSTGRES_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_PORT
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: password
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: database
+        - name: MODEL_UPDATE_INTERVAL
+          value: "3600"
+        - name: ANOMALY_THRESHOLD
+          value: "0.95"
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: model-storage
+          mountPath: /app/models
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: model-storage
+        persistentVolumeClaim:
+          claimName: model-storage-pvc
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-anomaly-detection
+  namespace: security-monitoring
+spec:
+  selector:
+    app: postgres-anomaly-detection
+  ports:
+  - port: 8080
+    targetPort: http
+    name: http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-storage-pvc
+  namespace: security-monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: gp2
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: anomaly-detection-config
+  namespace: security-monitoring
+data:
+  config.yaml: |
+    server:
+      port: 8080
+    database:
+      host: ${POSTGRES_HOST}
+      port: ${POSTGRES_PORT}
+      user: ${POSTGRES_USER}
+      password: ${POSTGRES_PASSWORD}
+      database: ${POSTGRES_DB}
+      ssl: true
+      sslMode: verify-full
+    models:
+      - name: query-anomaly-detector
+        type: isolation-forest
+        features:
+          - query_execution_time
+          - rows_affected
+          - tables_accessed
+          - time_of_day
+          - day_of_week
+        parameters:
+          n_estimators: 100
+          contamination: 0.01
+          random_state: 42
+      - name: login-anomaly-detector
+        type: one-class-svm
+        features:
+          - login_time
+          - ip_address_risk
+          - user_agent
+          - geolocation
+          - previous_login_time_delta
+        parameters:
+          kernel: rbf
+          nu: 0.01
+          gamma: 0.1
+      - name: privilege-escalation-detector
+        type: random-forest
+        features:
+          - role_changes
+          - permission_changes
+          - schema_changes
+          - user_creation
+          - sensitive_table_access
+        parameters:
+          n_estimators: 100
+          max_depth: 10
+          random_state: 42
+    alerts:
+      threshold: ${ANOMALY_THRESHOLD}
+      destinations:
+        - type: webhook
+          url: http://alert-manager:9093/api/v1/alerts
+        - type: slack
+          url: ${SLACK_WEBHOOK_URL}
+        - type: email
+          smtp_server: ${SMTP_SERVER}
+          smtp_port: ${SMTP_PORT}
+          smtp_user: ${SMTP_USER}
+          smtp_password: ${SMTP_PASSWORD}
+          recipients:
+            - security@example.com
+            - dba@example.com

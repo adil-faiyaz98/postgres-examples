@@ -3,6 +3,10 @@ kind: NetworkPolicy
 metadata:
   name: postgres-security-network-policy
   namespace: postgres-security
+  labels:
+    app: postgres-security
+    tier: database
+    security-level: high
 spec:
   podSelector:
     matchLabels:
@@ -15,17 +19,47 @@ spec:
     - podSelector:
         matchLabels:
           role: app-server
+      namespaceSelector:
+        matchLabels:
+          purpose: application
     - podSelector:
         matchLabels:
           role: monitoring
+      namespaceSelector:
+        matchLabels:
+          purpose: monitoring
     ports:
     - protocol: TCP
       port: 5432
   egress:
+  # Allow DNS resolution
   - to:
-    - namespaceSelector: {}
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
     ports:
     - protocol: TCP
-      port: 53  # DNS
+      port: 53
     - protocol: UDP
-      port: 53  # DNS 
+      port: 53
+  # Allow metrics export to monitoring namespace
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          purpose: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090  # Prometheus
+    - protocol: TCP
+      port: 3000  # Grafana
+  # Allow backup operations
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          purpose: backup
+    ports:
+    - protocol: TCP
+      port: 8432  # Backup port

@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-auth-service
+  namespace: postgres-security
+  labels:
+    app: postgres-auth-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: postgres-auth-service
+  template:
+    metadata:
+      labels:
+        app: postgres-auth-service
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: auth-service
+        image: auth-service:latest
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: auth-secrets
+              key: jwt-secret
+        - name: OIDC_ISSUER
+          valueFrom:
+            configMapKeyRef:
+              name: auth-config
+              key: oidc-issuer
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: auth-config
+          mountPath: /etc/auth
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: auth-config
+        configMap:
+          name: auth-config
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-auth-service
+  namespace: postgres-security
+spec:
+  selector:
+    app: postgres-auth-service
+  ports:
+  - port: 8080
+    targetPort: http
+    name: http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-config
+  namespace: postgres-security
+data:
+  oidc-issuer: "https://auth.example.com"
+  auth-config.yaml: |
+    server:
+      port: 8080
+    authentication:
+      jwt:
+        issuer: "https://auth.example.com"
+        expiration: 3600
+      oidc:
+        enabled: true
+        providers:
+          - name: google
+            clientId: ${GOOGLE_CLIENT_ID}
+            clientSecret: ${GOOGLE_CLIENT_SECRET}
+          - name: github
+            clientId: ${GITHUB_CLIENT_ID}
+            clientSecret: ${GITHUB_CLIENT_SECRET}
+    authorization:
+      roles:
+        - name: postgres-admin
+          permissions:
+            - "postgres:*"
+        - name: postgres-user
+          permissions:
+            - "postgres:read"
+            - "postgres:write"
+        - name: postgres-readonly
+          permissions:
+            - "postgres:read"

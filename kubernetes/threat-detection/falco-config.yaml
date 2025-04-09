@@ -1,0 +1,206 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: falco
+  namespace: security-monitoring
+  labels:
+    app: falco
+    role: security
+spec:
+  selector:
+    matchLabels:
+      app: falco
+  template:
+    metadata:
+      labels:
+        app: falco
+        role: security
+    spec:
+      serviceAccountName: falco
+      containers:
+      - name: falco
+        image: falcosecurity/falco:0.33.1
+        imagePullPolicy: Always
+        securityContext:
+          privileged: true
+        args:
+          - /usr/bin/falco
+          - -K
+          - /var/run/secrets/kubernetes.io/serviceaccount/token
+          - -k
+          - https://kubernetes.default.svc.cluster.local
+          - -pk
+        env:
+        - name: SYSDIG_BPF_PROBE
+          value: ""
+        - name: FALCO_GRPC_ENABLED
+          value: "true"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1024Mi
+        volumeMounts:
+        - mountPath: /host/var/run/docker.sock
+          name: docker-socket
+          readOnly: true
+        - mountPath: /host/dev
+          name: dev-fs
+          readOnly: true
+        - mountPath: /host/proc
+          name: proc-fs
+          readOnly: true
+        - mountPath: /host/boot
+          name: boot-fs
+          readOnly: true
+        - mountPath: /host/lib/modules
+          name: lib-modules
+          readOnly: true
+        - mountPath: /host/usr
+          name: usr-fs
+          readOnly: true
+        - mountPath: /host/etc
+          name: etc-fs
+          readOnly: true
+        - mountPath: /etc/falco
+          name: falco-config
+      volumes:
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
+      - name: dev-fs
+        hostPath:
+          path: /dev
+      - name: proc-fs
+        hostPath:
+          path: /proc
+      - name: boot-fs
+        hostPath:
+          path: /boot
+      - name: lib-modules
+        hostPath:
+          path: /lib/modules
+      - name: usr-fs
+        hostPath:
+          path: /usr
+      - name: etc-fs
+        hostPath:
+          path: /etc
+      - name: falco-config
+        configMap:
+          name: falco-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-config
+  namespace: security-monitoring
+data:
+  falco.yaml: |
+    # Falco configuration file
+
+    # File containing Falco rules
+    rules_file:
+      - /etc/falco/falco_rules.yaml
+      - /etc/falco/falco_rules.local.yaml
+      - /etc/falco/k8s_audit_rules.yaml
+      - /etc/falco/postgresql_rules.yaml
+
+    # Whether to output events in json format
+    json_output: true
+
+    # Send information logs to stderr and/or syslog
+    log_stderr: true
+    log_syslog: true
+
+    # Minimum log level to include in logs
+    log_level: info
+
+    # Where security notifications should go
+    program_output:
+      enabled: true
+      keep_alive: false
+      program: "curl -d @- -X POST http://falcosidekick:2801/"
+
+    http_output:
+      enabled: true
+      url: "http://falcosidekick:2801/"
+
+    # gRPC server using mutual TLS authentication
+    grpc:
+      enabled: true
+      bind_address: "0.0.0.0:5060"
+      threadiness: 8
+      private_key: /etc/falco/certs/server.key
+      cert_chain: /etc/falco/certs/server.crt
+      root_certs: /etc/falco/certs/ca.crt
+
+  postgresql_rules.yaml: |
+    - rule: Unauthorized Access to PostgreSQL
+      desc: Detect unauthorized access attempts to PostgreSQL
+      condition: >
+        spawned_process and 
+        proc.name in (postgres, psql) and 
+        not proc.pname in (postgres) and
+        not user.name in (postgres, root)
+      output: >
+        Unauthorized access to PostgreSQL detected 
+        (user=%user.name command=%proc.cmdline)
+      priority: WARNING
+      tags: [database, postgresql, mitre_credential_access]
+
+    - rule: PostgreSQL Configuration Change
+      desc: Detect changes to PostgreSQL configuration files
+      condition: >
+        open_write and 
+        fd.name contains "postgresql.conf" or 
+        fd.name contains "pg_hba.conf" or 
+        fd.name contains "recovery.conf"
+      output: >
+        PostgreSQL configuration file modified 
+        (user=%user.name command=%proc.cmdline file=%fd.name)
+      priority: WARNING
+      tags: [database, postgresql, mitre_persistence]
+
+    - rule: PostgreSQL Data Directory Access
+      desc: Detect unauthorized access to PostgreSQL data directory
+      condition: >
+        open_read and 
+        fd.directory contains "/var/lib/postgresql/data" and 
+        not proc.name in (postgres, pg_dump, pg_basebackup, pg_restore) and
+        not user.name in (postgres, root)
+      output: >
+        Unauthorized access to PostgreSQL data directory 
+        (user=%user.name command=%proc.cmdline file=%fd.name)
+      priority: WARNING
+      tags: [database, postgresql, mitre_collection]
+
+    - rule: PostgreSQL Privilege Escalation
+      desc: Detect potential privilege escalation in PostgreSQL
+      condition: >
+        spawned_process and 
+        proc.name = "psql" and 
+        proc.args contains "ALTER ROLE" and 
+        proc.args contains "SUPERUSER"
+      output: >
+        PostgreSQL privilege escalation attempt detected 
+        (user=%user.name command=%proc.cmdline)
+      priority: CRITICAL
+      tags: [database, postgresql, mitre_privilege_escalation]
+
+    - rule: PostgreSQL Suspicious Query
+      desc: Detect suspicious queries in PostgreSQL
+      condition: >
+        spawned_process and 
+        proc.name in (psql, pg_dump) and 
+        (proc.args contains "information_schema" or 
+         proc.args contains "pg_catalog" or 
+         proc.args contains "pg_shadow" or 
+         proc.args contains "DELETE FROM pg_")
+      output: >
+        Suspicious PostgreSQL query detected 
+        (user=%user.name command=%proc.cmdline)
+      priority: WARNING
+      tags: [database, postgresql, mitre_discovery]

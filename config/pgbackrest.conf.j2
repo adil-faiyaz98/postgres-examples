@@ -1,16 +1,40 @@
 [global]
+# Repository configuration
 repo1-path=/var/lib/pgbackrest
-repo1-retention-full=7
+repo1-retention-full=30
+repo1-retention-diff=14
+repo1-retention-archive=7
+
+# S3 configuration
 repo1-type=s3
 repo1-s3-bucket=your-encrypted-backups-bucket
 repo1-s3-endpoint=s3.amazonaws.com
+repo1-s3-region={{ lookup('env', 'AWS_REGION') }}
 repo1-s3-key={{ lookup('env', 'AWS_ACCESS_KEY_ID') }}
 repo1-s3-key-secret={{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}
+repo1-s3-key-type=shared
 
+# Server-side encryption with KMS
+repo1-s3-server-side-encryption=true
+repo1-s3-server-side-encryption-kms-key-id={{ lookup('env', 'KMS_KEY_ID') }}
 
-# Enable GPG Encryption
-repo1-cipher-type=gpg
-repo1-cipher-passphrase={{ lookup('env', 'PGP_PASSPHRASE') }}
+# Enable GPG Encryption (client-side)
+repo1-cipher-type=aes-256-cbc
+repo1-cipher-pass={{ lookup('env', 'PGP_PASSPHRASE') }}
+
+# Compression settings
+repo1-compress-level=9
+repo1-compress-type=zst
+
+# Logging and monitoring
+log-level-console=info
+log-level-file=detail
+log-path=/var/log/pgbackrest
+
+# Security settings
+repo1-storage-verify=true
+repo1-storage-verify-tls=true
+repo1-storage-ca-file=/etc/ssl/certs/ca-certificates.crt
 
 
 [db_dev]

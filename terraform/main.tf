@@ -1,6 +1,6 @@
 terraform {
   required_version = ">= 1.0.0"
-  
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -40,6 +40,10 @@ data "aws_subnets" "private" {
   }
 }
 
+data "aws_region" "current" {}
+
+data "aws_caller_identity" "current" {}
+
 resource "aws_kms_key" "postgres" {
   description             = "KMS key for PostgreSQL encryption"
   deletion_window_in_days = 7
@@ -64,6 +68,19 @@ resource "aws_kms_key" "postgres" {
 resource "aws_db_subnet_group" "postgres" {
   name       = "postgres-subnet-group"
   subnet_ids = data.aws_subnets.private.ids
+}
+
+# Use the secrets module to manage database credentials
+module "secrets" {
+  source = "./modules/secrets"
+
+  region      = var.aws_region
+  environment = var.environment
+  db_username = var.db_username
+  db_password = var.db_password
+  db_name     = var.db_name
+  db_host     = "postgres-${var.environment}.${data.aws_region.current.name}.rds.amazonaws.com"
+  oidc_provider = var.oidc_provider
 }
 
 resource "aws_db_instance" "postgres" {

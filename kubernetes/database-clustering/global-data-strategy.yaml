@@ -1,0 +1,236 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: global-data-strategy-config
+  namespace: postgres-security
+data:
+  global-data-strategy.md: |
+    # Global Data Strategy for PostgreSQL Security Framework
+    
+    This document outlines the global data strategy for the PostgreSQL Security Framework, including multi-region deployment, data synchronization, and disaster recovery.
+    
+    ## Multi-Region Architecture
+    
+    The PostgreSQL Security Framework uses a multi-region architecture with the following components:
+    
+    1. **Primary Region**: The primary region hosts the master database and is responsible for all write operations.
+    2. **Secondary Regions**: Secondary regions host read replicas and are used for read operations and disaster recovery.
+    3. **Global Load Balancer**: A global load balancer routes traffic to the appropriate region based on latency and availability.
+    
+    ## Data Synchronization
+    
+    Data synchronization between regions is achieved through the following mechanisms:
+    
+    1. **Logical Replication**: PostgreSQL logical replication is used to replicate data between regions.
+    2. **BDR (Bi-Directional Replication)**: For multi-master setups, BDR is used to enable writes in multiple regions.
+    3. **Change Data Capture (CDC)**: CDC is used to capture changes in the primary region and apply them to secondary regions.
+    
+    ## Data Locality and Compliance
+    
+    To address data sovereignty and compliance requirements:
+    
+    1. **Data Classification**: Data is classified based on sensitivity and regulatory requirements.
+    2. **Geo-Partitioning**: Data is partitioned based on geographic location to ensure compliance with local regulations.
+    3. **Data Masking**: Sensitive data is masked or tokenized when transferred across regions.
+    
+    ## Disaster Recovery
+    
+    The disaster recovery strategy includes:
+    
+    1. **Cross-Region Backups**: Regular backups are stored in multiple regions.
+    2. **Automated Failover**: Automated failover to secondary regions in case of primary region failure.
+    3. **Recovery Time Objective (RTO)**: RTO of < 15 minutes for critical systems.
+    4. **Recovery Point Objective (RPO)**: RPO of < 5 minutes for critical data.
+    
+    ## Implementation Guidelines
+    
+    ### 1. Region Setup
+    
+    Each region should have the following components:
+    
+    - PostgreSQL cluster with Patroni for high availability
+    - PgBouncer for connection pooling
+    - Monitoring and alerting infrastructure
+    - Backup infrastructure
+    
+    ### 2. Cross-Region Replication
+    
+    For cross-region replication:
+    
+    ```sql
+    -- Create publication in primary region
+    CREATE PUBLICATION global_pub FOR ALL TABLES;
+    
+    -- Create subscription in secondary region
+    CREATE SUBSCRIPTION global_sub
+      CONNECTION 'host=primary-region-db port=5432 dbname=postgres user=replicator password=xxx'
+      PUBLICATION global_pub;
+    ```
+    
+    ### 3. Geo-Partitioning
+    
+    For geo-partitioning:
+    
+    ```sql
+    -- Create partitioned table
+    CREATE TABLE global_data (
+      id SERIAL,
+      region TEXT,
+      data JSONB,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    ) PARTITION BY LIST (region);
+    
+    -- Create partitions for each region
+    CREATE TABLE global_data_us PARTITION OF global_data FOR VALUES IN ('us-east', 'us-west');
+    CREATE TABLE global_data_eu PARTITION OF global_data FOR VALUES IN ('eu-west', 'eu-central');
+    CREATE TABLE global_data_ap PARTITION OF global_data FOR VALUES IN ('ap-southeast', 'ap-northeast');
+    ```
+    
+    ### 4. Data Access Layer
+    
+    Applications should use a data access layer that:
+    
+    - Routes write operations to the primary region
+    - Routes read operations to the nearest region
+    - Implements retry logic for failover scenarios
+    - Enforces data sovereignty rules
+    
+    ## Monitoring and Metrics
+    
+    The following metrics should be monitored:
+    
+    - Replication lag between regions
+    - Cross-region network latency
+    - Regional database performance
+    - Failover events and recovery time
+    
+    ## Deployment Strategy
+    
+    The deployment strategy for global data includes:
+    
+    1. **Staged Rollout**: New features are rolled out to one region at a time.
+    2. **Blue-Green Deployment**: Blue-green deployment is used for major version upgrades.
+    3. **Canary Deployment**: Canary deployment is used to test changes in a single region before global rollout.
+    
+    ## Conclusion
+    
+    This global data strategy ensures that the PostgreSQL Security Framework can operate efficiently and securely across multiple regions while meeting regulatory requirements and providing high availability.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: multi-region-setup
+  namespace: postgres-security
+data:
+  setup-logical-replication.sql: |
+    -- Enable logical replication
+    ALTER SYSTEM SET wal_level = logical;
+    ALTER SYSTEM SET max_replication_slots = 10;
+    ALTER SYSTEM SET max_wal_senders = 10;
+    
+    -- Create replication role
+    CREATE ROLE replicator WITH LOGIN REPLICATION PASSWORD 'secure_password';
+    
+    -- Create publication for all tables
+    CREATE PUBLICATION global_pub FOR ALL TABLES;
+    
+    -- Create replication slot
+    SELECT pg_create_logical_replication_slot('global_slot', 'pgoutput');
+    
+  setup-subscription.sql: |
+    -- Create subscription to primary region
+    CREATE SUBSCRIPTION global_sub
+      CONNECTION 'host=postgres-master.primary-region port=5432 dbname=postgres user=replicator password=secure_password'
+      PUBLICATION global_pub;
+    
+    -- Monitor subscription status
+    SELECT * FROM pg_stat_subscription;
+    
+  setup-geo-partitioning.sql: |
+    -- Create schema for global data
+    CREATE SCHEMA IF NOT EXISTS global_data;
+    
+    -- Create partitioned table for customer data
+    CREATE TABLE global_data.customers (
+      customer_id UUID PRIMARY KEY,
+      region TEXT NOT NULL,
+      customer_name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phone TEXT,
+      address JSONB,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    ) PARTITION BY LIST (region);
+    
+    -- Create partitions for each region
+    CREATE TABLE global_data.customers_us PARTITION OF global_data.customers FOR VALUES IN ('us-east', 'us-west');
+    CREATE TABLE global_data.customers_eu PARTITION OF global_data.customers FOR VALUES IN ('eu-west', 'eu-central');
+    CREATE TABLE global_data.customers_ap PARTITION OF global_data.customers FOR VALUES IN ('ap-southeast', 'ap-northeast');
+    
+    -- Create indexes on partitioned table
+    CREATE INDEX idx_customers_region ON global_data.customers (region);
+    CREATE INDEX idx_customers_email ON global_data.customers (email);
+    CREATE INDEX idx_customers_created_at ON global_data.customers (created_at);
+    
+    -- Create function to automatically update updated_at
+    CREATE OR REPLACE FUNCTION global_data.update_updated_at()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      NEW.updated_at = NOW();
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Create trigger to automatically update updated_at
+    CREATE TRIGGER update_customers_updated_at
+    BEFORE UPDATE ON global_data.customers
+    FOR EACH ROW
+    EXECUTE FUNCTION global_data.update_updated_at();
+    
+  setup-data-routing.sql: |
+    -- Create function to route data to the correct region
+    CREATE OR REPLACE FUNCTION global_data.route_customer_data(
+      p_customer_name TEXT,
+      p_email TEXT,
+      p_phone TEXT,
+      p_address JSONB,
+      p_ip_address INET
+    ) RETURNS UUID AS $$
+    DECLARE
+      v_region TEXT;
+      v_customer_id UUID;
+    BEGIN
+      -- Determine region based on IP address
+      IF p_ip_address <<= '10.0.0.0/8' THEN
+        v_region := 'us-east';
+      ELSIF p_ip_address <<= '172.16.0.0/12' THEN
+        v_region := 'eu-west';
+      ELSIF p_ip_address <<= '192.168.0.0/16' THEN
+        v_region := 'ap-southeast';
+      ELSE
+        v_region := 'us-east'; -- Default region
+      END IF;
+      
+      -- Generate customer ID
+      v_customer_id := gen_random_uuid();
+      
+      -- Insert customer data
+      INSERT INTO global_data.customers (
+        customer_id,
+        region,
+        customer_name,
+        email,
+        phone,
+        address
+      ) VALUES (
+        v_customer_id,
+        v_region,
+        p_customer_name,
+        p_email,
+        p_phone,
+        p_address
+      );
+      
+      RETURN v_customer_id;
+    END;
+    $$ LANGUAGE plpgsql;

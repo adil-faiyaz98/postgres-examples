@@ -16,10 +16,23 @@ spec:
     spec:
       securityContext:
         fsGroup: 999
+        runAsUser: 999
+        runAsGroup: 999
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: postgres-sa
       containers:
       - name: postgres
         image: yourorg/postgres-security:latest  # Replace with your image name
         imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false  # PostgreSQL needs to write to some directories
+          capabilities:
+            drop:
+              - ALL
+          privileged: false
         ports:
         - containerPort: 5432
           name: postgres
@@ -28,6 +41,22 @@ spec:
             name: postgres-credentials
         - configMapRef:
             name: postgres-security-config
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: password
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: database
         resources:
           requests:
             cpu: 500m
@@ -47,6 +76,9 @@ spec:
           subPath: pg_hba.conf
         - name: postgres-certs
           mountPath: /etc/certs
+          readOnly: true
+        - name: postgres-secrets
+          mountPath: "/mnt/secrets-store"
           readOnly: true
         livenessProbe:
           exec:
@@ -86,6 +118,12 @@ spec:
         secret:
           secretName: postgres-tls-certs
           defaultMode: 0400
+      - name: postgres-secrets
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: postgres-aws-secrets
   volumeClaimTemplates:
   - metadata:
       name: postgres-data
@@ -94,4 +132,4 @@ spec:
       storageClassName: gp2  # Use your cluster's storage class
       resources:
         requests:
-          storage: 20Gi 
+          storage: 20Gi

@@ -1,0 +1,237 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer
+  namespace: postgres-security
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pgbouncer
+  template:
+    metadata:
+      labels:
+        app: pgbouncer
+    spec:
+      securityContext:
+        fsGroup: 999
+        runAsUser: 999
+        runAsGroup: 999
+        runAsNonRoot: true
+      containers:
+      - name: pgbouncer
+        image: edoburu/pgbouncer:1.18.0
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+        env:
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: password
+        - name: DB_HOST
+          value: postgres-master
+        - name: DB_NAME
+          value: "*"
+        - name: POOL_MODE
+          value: "transaction"
+        - name: MAX_CLIENT_CONN
+          value: "10000"
+        - name: DEFAULT_POOL_SIZE
+          value: "100"
+        - name: RESERVE_POOL_SIZE
+          value: "50"
+        - name: RESERVE_POOL_TIMEOUT
+          value: "5"
+        - name: MAX_DB_CONNECTIONS
+          value: "300"
+        - name: MAX_USER_CONNECTIONS
+          value: "300"
+        - name: STATS_USERS
+          value: "postgres"
+        - name: SERVER_RESET_QUERY
+          value: "DISCARD ALL"
+        - name: SERVER_ROUND_ROBIN
+          value: "1"
+        - name: AUTH_TYPE
+          value: "scram-sha-256"
+        - name: AUTH_FILE
+          value: "/etc/pgbouncer/userlist.txt"
+        - name: ADMIN_USERS
+          value: "postgres"
+        ports:
+        - containerPort: 5432
+          name: pgbouncer
+        volumeMounts:
+        - name: pgbouncer-config
+          mountPath: /etc/pgbouncer
+        - name: certs
+          mountPath: /etc/certs
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 1
+            memory: 1Gi
+        readinessProbe:
+          tcpSocket:
+            port: 5432
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 5432
+          initialDelaySeconds: 15
+          periodSeconds: 20
+      volumes:
+      - name: pgbouncer-config
+        configMap:
+          name: pgbouncer-config
+      - name: certs
+        secret:
+          secretName: postgres-certs
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgbouncer-config
+  namespace: postgres-security
+data:
+  pgbouncer.ini: |
+    [databases]
+    * = host=postgres-master port=5432 dbname=$1
+    
+    [pgbouncer]
+    listen_addr = 0.0.0.0
+    listen_port = 5432
+    auth_type = scram-sha-256
+    auth_file = /etc/pgbouncer/userlist.txt
+    auth_query = SELECT username, password FROM pgbouncer.users WHERE username=$1
+    pool_mode = transaction
+    max_client_conn = 10000
+    default_pool_size = 100
+    reserve_pool_size = 50
+    reserve_pool_timeout = 5
+    max_db_connections = 300
+    max_user_connections = 300
+    server_reset_query = DISCARD ALL
+    server_round_robin = 1
+    ignore_startup_parameters = extra_float_digits
+    application_name_add_host = 1
+    
+    # TLS/SSL settings
+    client_tls_sslmode = prefer
+    client_tls_key_file = /etc/certs/server.key
+    client_tls_cert_file = /etc/certs/server.crt
+    client_tls_ca_file = /etc/certs/ca.crt
+    client_tls_protocols = TLSv1.2 TLSv1.3
+    client_tls_ciphers = HIGH:!aNULL:!MD5
+    
+    server_tls_sslmode = prefer
+    server_tls_key_file = /etc/certs/server.key
+    server_tls_cert_file = /etc/certs/server.crt
+    server_tls_ca_file = /etc/certs/ca.crt
+    server_tls_protocols = TLSv1.2 TLSv1.3
+    server_tls_ciphers = HIGH:!aNULL:!MD5
+    
+    # Logging
+    log_connections = 1
+    log_disconnections = 1
+    log_pooler_errors = 1
+    stats_period = 60
+    verbose = 0
+    
+    # Admin console
+    admin_users = postgres
+    stats_users = postgres
+    
+  userlist.txt: |
+    "postgres" "SCRAM-SHA-256$4096:somescramhash"
+    
+  setup-pgbouncer-auth.sql: |
+    -- Create pgbouncer schema and users table
+    CREATE SCHEMA IF NOT EXISTS pgbouncer;
+    
+    CREATE TABLE IF NOT EXISTS pgbouncer.users (
+        username text PRIMARY KEY,
+        password text NOT NULL
+    );
+    
+    -- Insert users (passwords should be properly hashed in production)
+    INSERT INTO pgbouncer.users (username, password)
+    VALUES ('postgres', 'SCRAM-SHA-256$4096:somescramhash')
+    ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password;
+    
+    -- Grant permissions
+    GRANT USAGE ON SCHEMA pgbouncer TO postgres;
+    GRANT SELECT ON pgbouncer.users TO postgres;
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer
+  namespace: postgres-security
+  labels:
+    app: pgbouncer
+spec:
+  selector:
+    app: pgbouncer
+  ports:
+  - port: 5432
+    targetPort: 5432
+    name: pgbouncer
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: pgbouncer-hpa
+  namespace: postgres-security
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pgbouncer
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 20
+        periodSeconds: 30
+      - type: Pods
+        value: 2
+        periodSeconds: 30

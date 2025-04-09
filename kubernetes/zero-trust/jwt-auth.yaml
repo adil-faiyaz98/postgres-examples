@@ -1,0 +1,69 @@
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: postgres-jwt-auth
+  namespace: postgres-security
+spec:
+  selector:
+    matchLabels:
+      app: postgres-security
+  jwtRules:
+  - issuer: "https://auth.example.com"
+    jwksUri: "https://auth.example.com/.well-known/jwks.json"
+    forwardOriginalToken: true
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: postgres-jwt-authz
+  namespace: postgres-security
+spec:
+  selector:
+    matchLabels:
+      app: postgres-security
+  rules:
+  - from:
+    - source:
+        requestPrincipals: ["*"]
+    when:
+    - key: request.auth.claims[groups]
+      values: ["postgres-users", "postgres-admins"]
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: jwt-claim-to-header
+  namespace: postgres-security
+spec:
+  workloadSelector:
+    labels:
+      app: postgres-security
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.lua
+        typed_config:
+          "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+          inlineCode: |
+            function envoy_on_request(request_handle)
+              local metadata = request_handle:metadata()
+              local authz = metadata:get("request.auth.claims")
+              if authz ~= nil then
+                local user = authz["sub"]
+                if user ~= nil then
+                  request_handle:headers():add("X-User-ID", user)
+                end
+                local groups = authz["groups"]
+                if groups ~= nil then
+                  request_handle:headers():add("X-User-Groups", groups)
+                end
+              end
+            end

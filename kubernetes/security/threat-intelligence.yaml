@@ -1,0 +1,914 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: threat-intelligence
+  namespace: postgres-security
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: threat-intelligence
+  template:
+    metadata:
+      labels:
+        app: threat-intelligence
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+      containers:
+      - name: threat-intelligence
+        image: python:3.11-slim
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+        env:
+        - name: PGHOST
+          value: postgres-master
+        - name: PGPORT
+          value: "5432"
+        - name: PGDATABASE
+          value: postgres
+        - name: PGUSER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: username
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: password
+        - name: OTXKEY
+          valueFrom:
+            secretKeyRef:
+              name: threat-intelligence-credentials
+              key: otx_api_key
+        - name: ABUSEIPDBKEY
+          valueFrom:
+            secretKeyRef:
+              name: threat-intelligence-credentials
+              key: abuseipdb_api_key
+        - name: VIRUSTOTALKEY
+          valueFrom:
+            secretKeyRef:
+              name: threat-intelligence-credentials
+              key: virustotal_api_key
+        ports:
+        - containerPort: 8000
+          name: api
+        volumeMounts:
+        - name: threat-intelligence-config
+          mountPath: /app/config
+        - name: threat-intelligence-code
+          mountPath: /app
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1
+            memory: 1Gi
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        command:
+        - /bin/bash
+        - -c
+        - |
+          pip install --no-cache-dir -r /app/requirements.txt
+          python /app/app.py
+      volumes:
+      - name: threat-intelligence-config
+        configMap:
+          name: threat-intelligence-config
+      - name: threat-intelligence-code
+        configMap:
+          name: threat-intelligence-code
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: threat-intelligence-config
+  namespace: postgres-security
+data:
+  config.yaml: |
+    # Threat Intelligence Service Configuration
+    
+    # Database Configuration
+    database:
+      host: ${PGHOST}
+      port: ${PGPORT}
+      dbname: ${PGDATABASE}
+      user: ${PGUSER}
+      password: ${PGPASSWORD}
+      schema: threat_intel
+      table_prefix: ti_
+    
+    # API Keys
+    api_keys:
+      otx: ${OTXKEY}
+      abuseipdb: ${ABUSEIPDBKEY}
+      virustotal: ${VIRUSTOTALKEY}
+    
+    # Threat Intelligence Sources
+    sources:
+      - name: otx
+        enabled: true
+        url: https://otx.alienvault.com/api/v1
+        update_interval: 3600  # seconds
+        pulse_subscription: true
+        indicators:
+          - type: ip
+            path: /indicators/IPv4/{indicator}/general
+          - type: domain
+            path: /indicators/domain/{indicator}/general
+          - type: url
+            path: /indicators/url/{indicator}/general
+          - type: file_hash
+            path: /indicators/file/{indicator}/general
+      
+      - name: abuseipdb
+        enabled: true
+        url: https://api.abuseipdb.com/api/v2
+        update_interval: 3600  # seconds
+        indicators:
+          - type: ip
+            path: /check
+            params:
+              ipAddress: "{indicator}"
+              maxAgeInDays: 90
+      
+      - name: virustotal
+        enabled: true
+        url: https://www.virustotal.com/api/v3
+        update_interval: 3600  # seconds
+        indicators:
+          - type: ip
+            path: /ip_addresses/{indicator}
+          - type: domain
+            path: /domains/{indicator}
+          - type: url
+            path: /urls/{indicator}
+          - type: file_hash
+            path: /files/{indicator}
+    
+    # Blocklists
+    blocklists:
+      - name: tor_exit_nodes
+        url: https://check.torproject.org/exit-addresses
+        type: ip
+        update_interval: 86400  # seconds
+        parser: tor_exit_nodes
+      
+      - name: emerging_threats
+        url: https://rules.emergingthreats.net/blockrules/compromised-ips.txt
+        type: ip
+        update_interval: 86400  # seconds
+        parser: line_by_line
+      
+      - name: abuse_ch_feodo
+        url: https://feodotracker.abuse.ch/downloads/ipblocklist.txt
+        type: ip
+        update_interval: 86400  # seconds
+        parser: line_by_line
+    
+    # API Configuration
+    api:
+      host: 0.0.0.0
+      port: 8000
+      rate_limit: 100  # requests per minute
+      cache_ttl: 300  # seconds
+    
+    # Logging Configuration
+    logging:
+      level: INFO
+      file: /var/log/threat-intelligence.log
+      format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: threat-intelligence-code
+  namespace: postgres-security
+data:
+  requirements.txt: |
+    fastapi==0.103.1
+    uvicorn==0.23.2
+    psycopg2-binary==2.9.7
+    requests==2.31.0
+    pyyaml==6.0.1
+    pydantic==2.3.0
+    python-dotenv==1.0.0
+    schedule==1.2.0
+    redis==5.0.0
+    aiohttp==3.8.5
+    aiocache==0.12.1
+    
+  app.py: |
+    #!/usr/bin/env python3
+    """
+    Threat Intelligence Service for PostgreSQL Security Framework
+    
+    This service integrates with various threat intelligence sources and provides
+    an API for checking IP addresses, domains, URLs, and file hashes against
+    known threat intelligence data.
+    """
+    
+    import os
+    import sys
+    import time
+    import logging
+    import yaml
+    import json
+    import re
+    import threading
+    import schedule
+    import requests
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    from fastapi import FastAPI, HTTPException, Depends, Query, Header
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import JSONResponse
+    from pydantic import BaseModel, Field
+    from typing import List, Dict, Any, Optional
+    from datetime import datetime, timedelta
+    
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+            logging.FileHandler("/var/log/threat-intelligence.log")
+        ]
+    )
+    logger = logging.getLogger("threat-intelligence")
+    
+    # Load configuration
+    def load_config():
+        config_path = os.environ.get("CONFIG_PATH", "/app/config/config.yaml")
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+        
+        # Replace environment variables
+        config_str = json.dumps(config)
+        env_pattern = re.compile(r'\${([^}]+)}')
+        
+        def replace_env_vars(match):
+            env_var = match.group(1)
+            return os.environ.get(env_var, f"${{{env_var}}}")
+        
+        config_str = env_pattern.sub(replace_env_vars, config_str)
+        return json.loads(config_str)
+    
+    config = load_config()
+    
+    # Initialize FastAPI
+    app = FastAPI(
+        title="Threat Intelligence API",
+        description="API for checking indicators against threat intelligence sources",
+        version="1.0.0"
+    )
+    
+    # Add CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
+    # Database connection
+    def get_db_connection():
+        return psycopg2.connect(
+            host=config["database"]["host"],
+            port=config["database"]["port"],
+            dbname=config["database"]["dbname"],
+            user=config["database"]["user"],
+            password=config["database"]["password"]
+        )
+    
+    # Initialize database
+    def init_database():
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # Create schema if it doesn't exist
+            cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {config['database']['schema']}")
+            
+            # Create indicators table
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS {config['database']['schema']}.{config['database']['table_prefix']}indicators (
+                    id SERIAL PRIMARY KEY,
+                    type VARCHAR(20) NOT NULL,
+                    value TEXT NOT NULL,
+                    source VARCHAR(50) NOT NULL,
+                    first_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    reputation INTEGER,
+                    risk_score NUMERIC(5,2),
+                    malicious BOOLEAN,
+                    data JSONB,
+                    UNIQUE(type, value, source)
+                )
+            """)
+            
+            # Create indexes
+            cursor.execute(f"""
+                CREATE INDEX IF NOT EXISTS idx_{config['database']['table_prefix']}indicators_type_value
+                ON {config['database']['schema']}.{config['database']['table_prefix']}indicators (type, value)
+            """)
+            
+            cursor.execute(f"""
+                CREATE INDEX IF NOT EXISTS idx_{config['database']['table_prefix']}indicators_source
+                ON {config['database']['schema']}.{config['database']['table_prefix']}indicators (source)
+            """)
+            
+            # Create blocklist table
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS {config['database']['schema']}.{config['database']['table_prefix']}blocklists (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(50) NOT NULL,
+                    type VARCHAR(20) NOT NULL,
+                    value TEXT NOT NULL,
+                    added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    data JSONB,
+                    UNIQUE(name, type, value)
+                )
+            """)
+            
+            # Create indexes
+            cursor.execute(f"""
+                CREATE INDEX IF NOT EXISTS idx_{config['database']['table_prefix']}blocklists_type_value
+                ON {config['database']['schema']}.{config['database']['table_prefix']}blocklists (type, value)
+            """)
+            
+            # Create function to check if an IP is in a blocklist
+            cursor.execute(f"""
+                CREATE OR REPLACE FUNCTION {config['database']['schema']}.check_indicator(
+                    p_type TEXT,
+                    p_value TEXT
+                ) RETURNS TABLE (
+                    source TEXT,
+                    malicious BOOLEAN,
+                    risk_score NUMERIC,
+                    data JSONB
+                ) AS $$
+                BEGIN
+                    RETURN QUERY
+                    SELECT
+                        CASE
+                            WHEN b.name IS NOT NULL THEN 'blocklist:' || b.name
+                            ELSE i.source
+                        END AS source,
+                        CASE
+                            WHEN b.name IS NOT NULL THEN TRUE
+                            ELSE i.malicious
+                        END AS malicious,
+                        CASE
+                            WHEN b.name IS NOT NULL THEN 100::NUMERIC
+                            ELSE i.risk_score
+                        END AS risk_score,
+                        CASE
+                            WHEN b.name IS NOT NULL THEN b.data
+                            ELSE i.data
+                        END AS data
+                    FROM (
+                        SELECT *
+                        FROM {config['database']['schema']}.{config['database']['table_prefix']}indicators
+                        WHERE type = p_type AND value = p_value
+                        UNION ALL
+                        SELECT NULL, p_type, p_value, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+                        LIMIT 1
+                    ) i
+                    LEFT JOIN {config['database']['schema']}.{config['database']['table_prefix']}blocklists b
+                    ON b.type = p_type AND b.value = p_value
+                    WHERE i.type IS NOT NULL OR b.name IS NOT NULL;
+                END;
+                $$ LANGUAGE plpgsql;
+            """)
+            
+            # Create function to log threat intelligence checks
+            cursor.execute(f"""
+                CREATE OR REPLACE FUNCTION {config['database']['schema']}.log_indicator_check(
+                    p_type TEXT,
+                    p_value TEXT,
+                    p_source TEXT,
+                    p_malicious BOOLEAN,
+                    p_username TEXT,
+                    p_source_ip TEXT
+                ) RETURNS VOID AS $$
+                BEGIN
+                    INSERT INTO logs.notification_log (
+                        event_type,
+                        severity,
+                        username,
+                        source_ip,
+                        message,
+                        additional_data
+                    ) VALUES (
+                        'THREAT_INTEL_CHECK',
+                        CASE
+                            WHEN p_malicious THEN 'HIGH'
+                            ELSE 'INFO'
+                        END,
+                        p_username,
+                        p_source_ip,
+                        CASE
+                            WHEN p_malicious THEN 'Malicious indicator detected: ' || p_type || ':' || p_value
+                            ELSE 'Indicator checked: ' || p_type || ':' || p_value
+                        END,
+                        jsonb_build_object(
+                            'type', p_type,
+                            'value', p_value,
+                            'source', p_source,
+                            'malicious', p_malicious
+                        )
+                    );
+                END;
+                $$ LANGUAGE plpgsql;
+            """)
+            
+            conn.commit()
+            logger.info("Database initialized successfully")
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Error initializing database: {e}")
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+    
+    # Initialize database
+    init_database()
+    
+    # Models
+    class IndicatorCheck(BaseModel):
+        type: str = Field(..., description="Type of indicator (ip, domain, url, file_hash)")
+        value: str = Field(..., description="Value of the indicator to check")
+    
+    class IndicatorResponse(BaseModel):
+        type: str
+        value: str
+        malicious: bool
+        risk_score: float
+        sources: List[Dict[str, Any]]
+        blocklists: List[str]
+    
+    # API endpoints
+    @app.get("/health")
+    async def health_check():
+        return {"status": "healthy"}
+    
+    @app.post("/check", response_model=IndicatorResponse)
+    async def check_indicator(
+        indicator: IndicatorCheck,
+        x_forwarded_for: Optional[str] = Header(None),
+        user_agent: Optional[str] = Header(None)
+    ):
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        try:
+            # Check indicator against database
+            cursor.execute(f"""
+                SELECT * FROM {config['database']['schema']}.check_indicator(%s, %s)
+            """, (indicator.type, indicator.value))
+            
+            results = cursor.fetchall()
+            
+            if not results:
+                # If no results, check against threat intelligence sources
+                results = check_external_sources(indicator.type, indicator.value)
+            
+            # Process results
+            malicious = any(result.get('malicious', False) for result in results)
+            risk_score = max([result.get('risk_score', 0) or 0 for result in results], default=0)
+            
+            # Group results by source
+            sources = []
+            blocklists = []
+            
+            for result in results:
+                source = result.get('source', '')
+                if source.startswith('blocklist:'):
+                    blocklists.append(source.replace('blocklist:', ''))
+                else:
+                    sources.append({
+                        'name': source,
+                        'malicious': result.get('malicious', False),
+                        'risk_score': result.get('risk_score', 0),
+                        'data': result.get('data', {})
+                    })
+            
+            # Log the check
+            client_ip = x_forwarded_for or 'unknown'
+            username = 'api_user'  # In a real implementation, this would come from authentication
+            
+            cursor.execute(f"""
+                SELECT {config['database']['schema']}.log_indicator_check(%s, %s, %s, %s, %s, %s)
+            """, (indicator.type, indicator.value, 'api', malicious, username, client_ip))
+            
+            conn.commit()
+            
+            return {
+                'type': indicator.type,
+                'value': indicator.value,
+                'malicious': malicious,
+                'risk_score': risk_score,
+                'sources': sources,
+                'blocklists': blocklists
+            }
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Error checking indicator: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            cursor.close()
+            conn.close()
+    
+    def check_external_sources(indicator_type, indicator_value):
+        # This function would check external threat intelligence sources
+        # For brevity, we're returning an empty list here
+        # In a real implementation, this would make API calls to the configured sources
+        return []
+    
+    # Background tasks
+    def update_blocklists():
+        logger.info("Updating blocklists...")
+        for blocklist in config.get('blocklists', []):
+            try:
+                logger.info(f"Updating blocklist: {blocklist['name']}")
+                response = requests.get(blocklist['url'], timeout=30)
+                response.raise_for_status()
+                
+                # Parse the blocklist based on the configured parser
+                parser = blocklist.get('parser', 'line_by_line')
+                indicators = []
+                
+                if parser == 'line_by_line':
+                    # Simple line-by-line parser
+                    for line in response.text.splitlines():
+                        line = line.strip()
+                        if line and not line.startswith('#'):
+                            indicators.append({
+                                'type': blocklist['type'],
+                                'value': line,
+                                'name': blocklist['name']
+                            })
+                elif parser == 'tor_exit_nodes':
+                    # Parser for Tor exit nodes
+                    for line in response.text.splitlines():
+                        if line.startswith('ExitAddress '):
+                            parts = line.split()
+                            if len(parts) >= 2:
+                                indicators.append({
+                                    'type': 'ip',
+                                    'value': parts[1],
+                                    'name': blocklist['name']
+                                })
+                
+                # Update database
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                
+                try:
+                    # Begin transaction
+                    cursor.execute("BEGIN")
+                    
+                    # Delete old entries for this blocklist
+                    cursor.execute(f"""
+                        DELETE FROM {config['database']['schema']}.{config['database']['table_prefix']}blocklists
+                        WHERE name = %s
+                    """, (blocklist['name'],))
+                    
+                    # Insert new entries
+                    for indicator in indicators:
+                        cursor.execute(f"""
+                            INSERT INTO {config['database']['schema']}.{config['database']['table_prefix']}blocklists
+                            (name, type, value, added_at, updated_at, data)
+                            VALUES (%s, %s, %s, NOW(), NOW(), %s)
+                            ON CONFLICT (name, type, value) DO UPDATE
+                            SET updated_at = NOW()
+                        """, (
+                            indicator['name'],
+                            indicator['type'],
+                            indicator['value'],
+                            json.dumps({'source': blocklist['url']})
+                        ))
+                    
+                    # Commit transaction
+                    cursor.execute("COMMIT")
+                    logger.info(f"Updated {len(indicators)} indicators for blocklist: {blocklist['name']}")
+                except Exception as e:
+                    cursor.execute("ROLLBACK")
+                    logger.error(f"Error updating blocklist {blocklist['name']}: {e}")
+                finally:
+                    cursor.close()
+                    conn.close()
+            except Exception as e:
+                logger.error(f"Error fetching blocklist {blocklist['name']}: {e}")
+    
+    def schedule_updates():
+        # Schedule blocklist updates
+        for blocklist in config.get('blocklists', []):
+            interval = blocklist.get('update_interval', 86400)  # Default to daily
+            schedule.every(interval).seconds.do(update_blocklists)
+        
+        # Run the scheduler
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+    
+    # Start the scheduler in a background thread
+    scheduler_thread = threading.Thread(target=schedule_updates, daemon=True)
+    scheduler_thread.start()
+    
+    # Run initial update
+    update_blocklists()
+    
+    # Run the API server
+    if __name__ == "__main__":
+        import uvicorn
+        uvicorn.run(
+            "app:app",
+            host=config['api']['host'],
+            port=config['api']['port'],
+            reload=False
+        )
+  
+  pg-threat-intel-integration.sql: |
+    -- Create schema for threat intelligence
+    CREATE SCHEMA IF NOT EXISTS threat_intel;
+    
+    -- Create function to check IP against threat intelligence
+    CREATE OR REPLACE FUNCTION threat_intel.check_ip(
+      p_ip text,
+      p_username text DEFAULT current_user,
+      p_source_ip text DEFAULT NULL
+    ) RETURNS jsonb AS $$
+    DECLARE
+      v_url text;
+      v_response jsonb;
+      v_result jsonb;
+    BEGIN
+      -- Set API URL
+      v_url := 'http://threat-intelligence:8000/check';
+      
+      -- Make request to threat intelligence service
+      SELECT content::jsonb INTO v_response
+      FROM http_post(
+        v_url,
+        jsonb_build_object(
+          'type', 'ip',
+          'value', p_ip
+        )::text,
+        'application/json'
+      );
+      
+      -- Log check in notification log if malicious
+      IF v_response->>'malicious' = 'true' THEN
+        INSERT INTO logs.notification_log (
+          event_type, severity, username, source_ip, message, additional_data
+        ) VALUES (
+          'THREAT_INTEL_ALERT', 'HIGH', p_username, COALESCE(p_source_ip, p_ip), 
+          'Malicious IP detected: ' || p_ip,
+          jsonb_build_object(
+            'ip', p_ip,
+            'risk_score', v_response->>'risk_score',
+            'sources', v_response->'sources',
+            'blocklists', v_response->'blocklists'
+          )
+        );
+      END IF;
+      
+      RETURN v_response;
+    EXCEPTION
+      WHEN OTHERS THEN
+        RAISE NOTICE 'Error checking IP against threat intelligence: %', SQLERRM;
+        RETURN jsonb_build_object(
+          'type', 'ip',
+          'value', p_ip,
+          'malicious', false,
+          'risk_score', 0,
+          'sources', jsonb_build_array(),
+          'blocklists', jsonb_build_array(),
+          'error', SQLERRM
+        );
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;
+    
+    -- Create function to check domain against threat intelligence
+    CREATE OR REPLACE FUNCTION threat_intel.check_domain(
+      p_domain text,
+      p_username text DEFAULT current_user,
+      p_source_ip text DEFAULT NULL
+    ) RETURNS jsonb AS $$
+    DECLARE
+      v_url text;
+      v_response jsonb;
+      v_result jsonb;
+    BEGIN
+      -- Set API URL
+      v_url := 'http://threat-intelligence:8000/check';
+      
+      -- Make request to threat intelligence service
+      SELECT content::jsonb INTO v_response
+      FROM http_post(
+        v_url,
+        jsonb_build_object(
+          'type', 'domain',
+          'value', p_domain
+        )::text,
+        'application/json'
+      );
+      
+      -- Log check in notification log if malicious
+      IF v_response->>'malicious' = 'true' THEN
+        INSERT INTO logs.notification_log (
+          event_type, severity, username, source_ip, message, additional_data
+        ) VALUES (
+          'THREAT_INTEL_ALERT', 'HIGH', p_username, p_source_ip, 
+          'Malicious domain detected: ' || p_domain,
+          jsonb_build_object(
+            'domain', p_domain,
+            'risk_score', v_response->>'risk_score',
+            'sources', v_response->'sources',
+            'blocklists', v_response->'blocklists'
+          )
+        );
+      END IF;
+      
+      RETURN v_response;
+    EXCEPTION
+      WHEN OTHERS THEN
+        RAISE NOTICE 'Error checking domain against threat intelligence: %', SQLERRM;
+        RETURN jsonb_build_object(
+          'type', 'domain',
+          'value', p_domain,
+          'malicious', false,
+          'risk_score', 0,
+          'sources', jsonb_build_array(),
+          'blocklists', jsonb_build_array(),
+          'error', SQLERRM
+        );
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;
+    
+    -- Create trigger function to check IPs on connection
+    CREATE OR REPLACE FUNCTION threat_intel.check_connection_ip()
+    RETURNS event_trigger AS $$
+    DECLARE
+      v_client_ip text;
+      v_result jsonb;
+    BEGIN
+      -- Get client IP
+      v_client_ip := inet_client_addr()::text;
+      
+      -- Check IP against threat intelligence
+      v_result := threat_intel.check_ip(v_client_ip);
+      
+      -- If malicious, log and potentially block
+      IF v_result->>'malicious' = 'true' THEN
+        RAISE WARNING 'Connection from malicious IP detected: %', v_client_ip;
+        
+        -- In a production environment, you might want to block the connection
+        -- EXECUTE pg_terminate_backend(pg_backend_pid());
+      END IF;
+    EXCEPTION
+      WHEN OTHERS THEN
+        RAISE NOTICE 'Error in check_connection_ip: %', SQLERRM;
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;
+    
+    -- Create event trigger for connection checks
+    -- Note: This requires superuser privileges and may not work in all environments
+    -- CREATE EVENT TRIGGER connection_check ON connection
+    --   EXECUTE PROCEDURE threat_intel.check_connection_ip();
+    
+    -- Create function to check all active connections
+    CREATE OR REPLACE FUNCTION threat_intel.check_active_connections()
+    RETURNS TABLE (
+      pid integer,
+      client_ip text,
+      username text,
+      database text,
+      malicious boolean,
+      risk_score numeric,
+      blocklists jsonb
+    ) AS $$
+    DECLARE
+      v_rec record;
+      v_result jsonb;
+    BEGIN
+      FOR v_rec IN
+        SELECT
+          pid,
+          client_addr::text AS client_ip,
+          usename AS username,
+          datname AS database
+        FROM pg_stat_activity
+        WHERE client_addr IS NOT NULL
+      LOOP
+        -- Check IP against threat intelligence
+        v_result := threat_intel.check_ip(v_rec.client_ip, v_rec.username);
+        
+        -- Return results
+        pid := v_rec.pid;
+        client_ip := v_rec.client_ip;
+        username := v_rec.username;
+        database := v_rec.database;
+        malicious := (v_result->>'malicious')::boolean;
+        risk_score := (v_result->>'risk_score')::numeric;
+        blocklists := v_result->'blocklists';
+        
+        RETURN NEXT;
+      END LOOP;
+      
+      RETURN;
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;
+    
+    -- Grant permissions
+    GRANT USAGE ON SCHEMA threat_intel TO app_user, security_admin;
+    GRANT EXECUTE ON FUNCTION threat_intel.check_ip TO app_user, security_admin;
+    GRANT EXECUTE ON FUNCTION threat_intel.check_domain TO app_user, security_admin;
+    GRANT EXECUTE ON FUNCTION threat_intel.check_active_connections TO security_admin;
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: threat-intelligence
+  namespace: postgres-security
+  labels:
+    app: threat-intelligence
+spec:
+  selector:
+    app: threat-intelligence
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: api
+  type: ClusterIP
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: threat-intelligence-blocklist-update
+  namespace: postgres-security
+spec:
+  schedule: "0 */6 * * *"  # Every 6 hours
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          securityContext:
+            fsGroup: 1000
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+          containers:
+          - name: blocklist-update
+            image: curlimages/curl:8.2.1
+            imagePullPolicy: Always
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                - ALL
+              privileged: false
+            command:
+            - /bin/sh
+            - -c
+            - |
+              curl -X POST http://threat-intelligence:8000/update-blocklists
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 200m
+                memory: 256Mi
+          restartPolicy: OnFailure

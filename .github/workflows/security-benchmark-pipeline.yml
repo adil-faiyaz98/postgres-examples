@@ -13,7 +13,7 @@ jobs:
     name: Security Vulnerability Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
@@ -32,7 +32,7 @@ jobs:
     name: SQL Linting and Quality Checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Install SQLFluff
         run: pip install sqlfluff
@@ -44,7 +44,7 @@ jobs:
     name: Static Code Analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
@@ -73,7 +73,7 @@ jobs:
           --health-retries 5
     
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Setup pgbench
         run: |
@@ -114,7 +114,7 @@ jobs:
     name: Security Compliance Checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Install compliance checking tools
         run: pip install checkov
@@ -141,7 +141,7 @@ jobs:
           --health-retries 5
     
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Test pgaudit functionality
         run: |

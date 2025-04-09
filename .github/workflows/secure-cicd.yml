@@ -40,13 +40,13 @@ jobs:
         uses: actions/checkout@v3
       
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@v3
         with:
           languages: 'python, javascript'
           queries: security-extended,security-and-quality
       
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v3
       
       - name: Run Semgrep
         uses: returntocorp/semgrep-action@v1
@@ -64,7 +64,7 @@ jobs:
           bandit -r . -f json -o bandit-results.json
       
       - name: Upload Bandit Results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: bandit-results.json
 
@@ -86,7 +86,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
       
       - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
       
@@ -102,7 +102,7 @@ jobs:
             --suppression suppression.xml
       
       - name: Upload Dependency-Check Results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: dependency-check-report.sarif
 
@@ -127,7 +127,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
       
       - name: Upload Trivy Docker scan results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-docker-results.sarif'
       
@@ -139,7 +139,7 @@ jobs:
           output: 'dockle-results.sarif'
       
       - name: Upload Dockle Results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'dockle-results.sarif'
 
@@ -167,7 +167,7 @@ jobs:
           output_file: checkov-results.sarif
       
       - name: Upload Checkov Results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: checkov-results.sarif
       
@@ -179,7 +179,7 @@ jobs:
           output-file: kube-linter-results.sarif
       
       - name: Upload kube-linter Results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: kube-linter-results.sarif
 
@@ -209,7 +209,7 @@ jobs:
           report-path: gitleaks-report.sarif
       
       - name: Upload GitLeaks Results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gitleaks-report.sarif
 

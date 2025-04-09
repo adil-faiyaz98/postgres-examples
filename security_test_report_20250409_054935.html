@@ -1,0 +1,217 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>PostgreSQL Security Framework Test Report</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1, h2, h3 { color: #333366; }
+            .summary { margin: 20px 0; padding: 10px; background-color: #f0f0f0; border-radius: 5px; }
+            .chart { margin: 20px 0; }
+            .PASS, .success { color: green; }
+            .FAIL, .danger { color: red; }
+            .WARNING, .warning { color: orange; }
+            .ERROR { color: darkred; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #333366; color: white; }
+            tr:nth-child(even) { background-color: #f2f2f2; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>PostgreSQL Security Framework Test Report</h1>
+            <p>Generated: 2025-04-09T05:49:35.574997</p>
+            
+            
+    <div class="summary">
+        <h2>Summary</h2>
+        <p>Overall Result: <span class="ERROR">ERROR</span></p>
+        <p>Total Tests: 84</p>
+        <p>Passed: 29</p>
+        <p>Failed: 24</p>
+        <p>Warnings: 19</p>
+        <p>Errors: 12</p>
+    </div>
+    
+            
+            <h2>Category Summary</h2>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Total Tests</th>
+                        <th>Passed</th>
+                        <th>Failed</th>
+                        <th>Warnings</th>
+                        <th>Errors</th>
+                        <th>Pass Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>SQL Injection</td><td>9</td><td>8</td><td>0</td><td>0</td><td>1</td><td>88.9%</td></tr><tr><td>Authentication</td><td>8</td><td>2</td><td>0</td><td>5</td><td>1</td><td>25.0%</td></tr><tr><td>Encryption</td><td>10</td><td>0</td><td>4</td><td>2</td><td>4</td><td>0.0%</td></tr><tr><td>Input Validation</td><td>5</td><td>2</td><td>3</td><td>0</td><td>0</td><td>40.0%</td></tr><tr><td>Configuration</td><td>6</td><td>4</td><td>1</td><td>1</td><td>0</td><td>66.7%</td></tr><tr><td>Stealth</td><td>7</td><td>1</td><td>3</td><td>2</td><td>1</td><td>14.3%</td></tr><tr><td>AI Security</td><td>9</td><td>1</td><td>3</td><td>5</td><td>0</td><td>11.1%</td></tr><tr><td>Infrastructure</td><td>5</td><td>3</td><td>1</td><td>1</td><td>0</td><td>60.0%</td></tr><tr><td>Insider Threats</td><td>4</td><td>2</td><td>2</td><td>0</td><td>0</td><td>50.0%</td></tr><tr><td>Audit</td><td>10</td><td>0</td><td>6</td><td>2</td><td>2</td><td>0.0%</td></tr><tr><td>Stored Procedures</td><td>4</td><td>1</td><td>0</td><td>1</td><td>2</td><td>25.0%</td></tr><tr><td>Timing Attacks</td><td>7</td><td>5</td><td>1</td><td>0</td><td>1</td><td>71.4%</td></tr>
+                    <tr class="table-secondary">
+                        <td><strong>Overall</strong></td>
+                        <td><strong>84</strong></td>
+                        <td><strong>29</strong></td>
+                        <td><strong>24</strong></td>
+                        <td><strong>19</strong></td>
+                        <td><strong>12</strong></td>
+                        <td><strong>34.5%</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h2>Test Details</h2>
+            <h3>SQL Injection</h3>
+<table class='table table-striped'>
+<thead><tr><th>Test</th><th>Result</th><th>Details</th></tr></thead>
+<tbody>
+<tr class='success'><td>SQL Injection Test 1</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>SQL Injection Test 2</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>SQL Injection Test 3</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>SQL Injection Test 4</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>SQL Injection Test 5</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>SQL Injection Test 6</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>SQL Injection Test 7</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>SQL Injection Test 8</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='danger'><td>SQL Injection Test 9</td><td>ERROR</td><td>Error during sql injection test execution</td></tr>
+</tbody></table>
+<h3>Authentication</h3>
+<table class='table table-striped'>
+<thead><tr><th>Test</th><th>Result</th><th>Details</th></tr></thead>
+<tbody>
+<tr class='success'><td>Authentication Test 1</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>Authentication Test 2</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='warning'><td>Authentication Test 3</td><td>WARNING</td><td>Potential vulnerability detected in authentication test</td></tr>
+<tr class='warning'><td>Authentication Test 4</td><td>WARNING</td><td>Potential vulnerability detected in authentication test</td></tr>
+<tr class='warning'><td>Authentication Test 5</td><td>WARNING</td><td>Potential vulnerability detected in authentication test</td></tr>
+<tr class='warning'><td>Authentication Test 6</td><td>WARNING</td><td>Potential vulnerability detected in authentication test</td></tr>
+<tr class='warning'><td>Authentication Test 7</td><td>WARNING</td><td>Potential vulnerability detected in authentication test</td></tr>
+<tr class='danger'><td>Authentication Test 8</td><td>ERROR</td><td>Error during authentication test execution</td></tr>
+</tbody></table>
+<h3>Encryption</h3>
+<table class='table table-striped'>
+<thead><tr><th>Test</th><th>Result</th><th>Details</th></tr></thead>
+<tbody>
+<tr class='danger'><td>Encryption Test 1</td><td>FAIL</td><td>Vulnerability detected in encryption test</td></tr>
+<tr class='danger'><td>Encryption Test 2</td><td>FAIL</td><td>Vulnerability detected in encryption test</td></tr>
+<tr class='danger'><td>Encryption Test 3</td><td>FAIL</td><td>Vulnerability detected in encryption test</td></tr>
+<tr class='danger'><td>Encryption Test 4</td><td>FAIL</td><td>Vulnerability detected in encryption test</td></tr>
+<tr class='warning'><td>Encryption Test 5</td><td>WARNING</td><td>Potential vulnerability detected in encryption test</td></tr>
+<tr class='warning'><td>Encryption Test 6</td><td>WARNING</td><td>Potential vulnerability detected in encryption test</td></tr>
+<tr class='danger'><td>Encryption Test 7</td><td>ERROR</td><td>Error during encryption test execution</td></tr>
+<tr class='danger'><td>Encryption Test 8</td><td>ERROR</td><td>Error during encryption test execution</td></tr>
+<tr class='danger'><td>Encryption Test 9</td><td>ERROR</td><td>Error during encryption test execution</td></tr>
+<tr class='danger'><td>Encryption Test 10</td><td>ERROR</td><td>Error during encryption test execution</td></tr>
+</tbody></table>
+<h3>Input Validation</h3>
+<table class='table table-striped'>
+<thead><tr><th>Test</th><th>Result</th><th>Details</th></tr></thead>
+<tbody>
+<tr class='success'><td>Input Validation Test 1</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>Input Validation Test 2</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='danger'><td>Input Validation Test 3</td><td>FAIL</td><td>Vulnerability detected in input validation test</td></tr>
+<tr class='danger'><td>Input Validation Test 4</td><td>FAIL</td><td>Vulnerability detected in input validation test</td></tr>
+<tr class='danger'><td>Input Validation Test 5</td><td>FAIL</td><td>Vulnerability detected in input validation test</td></tr>
+</tbody></table>
+<h3>Configuration</h3>
+<table class='table table-striped'>
+<thead><tr><th>Test</th><th>Result</th><th>Details</th></tr></thead>
+<tbody>
+<tr class='success'><td>Configuration Test 1</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>Configuration Test 2</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>Configuration Test 3</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>Configuration Test 4</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='danger'><td>Configuration Test 5</td><td>FAIL</td><td>Vulnerability detected in configuration test</td></tr>
+<tr class='warning'><td>Configuration Test 6</td><td>WARNING</td><td>Potential vulnerability detected in configuration test</td></tr>
+</tbody></table>
+<h3>Stealth</h3>
+<table class='table table-striped'>
+<thead><tr><th>Test</th><th>Result</th><th>Details</th></tr></thead>
+<tbody>
+<tr class='success'><td>Stealth Test 1</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='danger'><td>Stealth Test 2</td><td>FAIL</td><td>Vulnerability detected in stealth test</td></tr>
+<tr class='danger'><td>Stealth Test 3</td><td>FAIL</td><td>Vulnerability detected in stealth test</td></tr>
+<tr class='danger'><td>Stealth Test 4</td><td>FAIL</td><td>Vulnerability detected in stealth test</td></tr>
+<tr class='warning'><td>Stealth Test 5</td><td>WARNING</td><td>Potential vulnerability detected in stealth test</td></tr>
+<tr class='warning'><td>Stealth Test 6</td><td>WARNING</td><td>Potential vulnerability detected in stealth test</td></tr>
+<tr class='danger'><td>Stealth Test 7</td><td>ERROR</td><td>Error during stealth test execution</td></tr>
+</tbody></table>
+<h3>AI Security</h3>
+<table class='table table-striped'>
+<thead><tr><th>Test</th><th>Result</th><th>Details</th></tr></thead>
+<tbody>
+<tr class='success'><td>AI Security Test 1</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='danger'><td>AI Security Test 2</td><td>FAIL</td><td>Vulnerability detected in ai security test</td></tr>
+<tr class='danger'><td>AI Security Test 3</td><td>FAIL</td><td>Vulnerability detected in ai security test</td></tr>
+<tr class='danger'><td>AI Security Test 4</td><td>FAIL</td><td>Vulnerability detected in ai security test</td></tr>
+<tr class='warning'><td>AI Security Test 5</td><td>WARNING</td><td>Potential vulnerability detected in ai security test</td></tr>
+<tr class='warning'><td>AI Security Test 6</td><td>WARNING</td><td>Potential vulnerability detected in ai security test</td></tr>
+<tr class='warning'><td>AI Security Test 7</td><td>WARNING</td><td>Potential vulnerability detected in ai security test</td></tr>
+<tr class='warning'><td>AI Security Test 8</td><td>WARNING</td><td>Potential vulnerability detected in ai security test</td></tr>
+<tr class='warning'><td>AI Security Test 9</td><td>WARNING</td><td>Potential vulnerability detected in ai security test</td></tr>
+</tbody></table>
+<h3>Infrastructure</h3>
+<table class='table table-striped'>
+<thead><tr><th>Test</th><th>Result</th><th>Details</th></tr></thead>
+<tbody>
+<tr class='success'><td>Infrastructure Test 1</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>Infrastructure Test 2</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>Infrastructure Test 3</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='danger'><td>Infrastructure Test 4</td><td>FAIL</td><td>Vulnerability detected in infrastructure test</td></tr>
+<tr class='warning'><td>Infrastructure Test 5</td><td>WARNING</td><td>Potential vulnerability detected in infrastructure test</td></tr>
+</tbody></table>
+<h3>Insider Threats</h3>
+<table class='table table-striped'>
+<thead><tr><th>Test</th><th>Result</th><th>Details</th></tr></thead>
+<tbody>
+<tr class='success'><td>Insider Threats Test 1</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>Insider Threats Test 2</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='danger'><td>Insider Threats Test 3</td><td>FAIL</td><td>Vulnerability detected in insider threats test</td></tr>
+<tr class='danger'><td>Insider Threats Test 4</td><td>FAIL</td><td>Vulnerability detected in insider threats test</td></tr>
+</tbody></table>
+<h3>Audit</h3>
+<table class='table table-striped'>
+<thead><tr><th>Test</th><th>Result</th><th>Details</th></tr></thead>
+<tbody>
+<tr class='danger'><td>Audit Test 1</td><td>FAIL</td><td>Vulnerability detected in audit test</td></tr>
+<tr class='danger'><td>Audit Test 2</td><td>FAIL</td><td>Vulnerability detected in audit test</td></tr>
+<tr class='danger'><td>Audit Test 3</td><td>FAIL</td><td>Vulnerability detected in audit test</td></tr>
+<tr class='danger'><td>Audit Test 4</td><td>FAIL</td><td>Vulnerability detected in audit test</td></tr>
+<tr class='danger'><td>Audit Test 5</td><td>FAIL</td><td>Vulnerability detected in audit test</td></tr>
+<tr class='danger'><td>Audit Test 6</td><td>FAIL</td><td>Vulnerability detected in audit test</td></tr>
+<tr class='warning'><td>Audit Test 7</td><td>WARNING</td><td>Potential vulnerability detected in audit test</td></tr>
+<tr class='warning'><td>Audit Test 8</td><td>WARNING</td><td>Potential vulnerability detected in audit test</td></tr>
+<tr class='danger'><td>Audit Test 9</td><td>ERROR</td><td>Error during audit test execution</td></tr>
+<tr class='danger'><td>Audit Test 10</td><td>ERROR</td><td>Error during audit test execution</td></tr>
+</tbody></table>
+<h3>Stored Procedures</h3>
+<table class='table table-striped'>
+<thead><tr><th>Test</th><th>Result</th><th>Details</th></tr></thead>
+<tbody>
+<tr class='success'><td>Stored Procedures Test 1</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='warning'><td>Stored Procedures Test 2</td><td>WARNING</td><td>Potential vulnerability detected in stored procedures test</td></tr>
+<tr class='danger'><td>Stored Procedures Test 3</td><td>ERROR</td><td>Error during stored procedures test execution</td></tr>
+<tr class='danger'><td>Stored Procedures Test 4</td><td>ERROR</td><td>Error during stored procedures test execution</td></tr>
+</tbody></table>
+<h3>Timing Attacks</h3>
+<table class='table table-striped'>
+<thead><tr><th>Test</th><th>Result</th><th>Details</th></tr></thead>
+<tbody>
+<tr class='success'><td>Timing Attacks Test 1</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>Timing Attacks Test 2</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>Timing Attacks Test 3</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>Timing Attacks Test 4</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='success'><td>Timing Attacks Test 5</td><td>PASS</td><td>No vulnerabilities detected</td></tr>
+<tr class='danger'><td>Timing Attacks Test 6</td><td>FAIL</td><td>Vulnerability detected in timing attacks test</td></tr>
+<tr class='danger'><td>Timing Attacks Test 7</td><td>ERROR</td><td>Error during timing attacks test execution</td></tr>
+</tbody></table>
+
+        </div>
+        
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    </body>
+    </html>
+    

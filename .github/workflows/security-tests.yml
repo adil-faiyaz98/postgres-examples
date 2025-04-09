@@ -1,0 +1,264 @@
+name: PostgreSQL Security Framework Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run weekly on Monday at 2:00 AM
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+    inputs:
+      test_level:
+        description: 'Test level (basic, standard, full)'
+        required: true
+        default: 'standard'
+        type: choice
+        options:
+          - basic
+          - standard
+          - full
+
+jobs:
+  security-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install psycopg2-binary sqlalchemy pandas requests pytest pytest-cov cryptography numpy scikit-learn matplotlib seaborn plotly
+
+    - name: Initialize PostgreSQL Security Framework
+      run: |
+        # Create security_admin role
+        PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c "CREATE ROLE security_admin WITH LOGIN PASSWORD 'security_admin_password';"
+
+        # Initialize schemas and extensions
+        PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+        PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS plpython3u;"
+
+        # Create test database for pgTAP tests
+        PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c "CREATE DATABASE db_dev;"
+
+        # Install pgTAP
+        PGPASSWORD=postgres psql -h localhost -U postgres -d db_dev -c "CREATE EXTENSION IF NOT EXISTS pgtap;"
+
+        # Run initialization scripts
+        for script in scripts/security/*.sql scripts/database/*.sql scripts/monitoring/*.sql; do
+          if [ -f "$script" ]; then
+            echo "Running $script"
+            PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -f "$script"
+            # Also run on test database
+            PGPASSWORD=postgres psql -h localhost -U postgres -d db_dev -f "$script"
+          fi
+        done
+
+        # Create test roles for pgTAP tests
+        PGPASSWORD=postgres psql -h localhost -U postgres -d db_dev -c "CREATE ROLE readonly_user WITH LOGIN PASSWORD 'readonly_password';"
+        PGPASSWORD=postgres psql -h localhost -U postgres -d db_dev -c "CREATE ROLE app_user WITH LOGIN PASSWORD 'app_password';"
+
+    - name: Create test configuration
+      run: |
+        # Create test config with GitHub Actions specific settings
+        cat > tests/security/github_config.json << EOF
+        {
+          "database": {
+            "host": "localhost",
+            "port": 5432,
+            "name": "postgres",
+            "user": "postgres",
+            "password": "postgres"
+          },
+          "max_parallel_tests": 2,
+          "test_level": "${{ github.event.inputs.test_level || 'standard' }}",
+          "tests": $(cat tests/security/config.json | jq '.tests')
+        }
+        EOF
+
+    - name: Run security tests
+      run: |
+        # Create test directories if they don't exist
+        mkdir -p tests/security/sql_injection
+        mkdir -p tests/security/authentication
+        mkdir -p tests/security/encryption
+        mkdir -p tests/security/input_validation
+        mkdir -p tests/security/configuration
+        mkdir -p tests/security/stealth
+        mkdir -p tests/security/ai
+        mkdir -p tests/security/infrastructure
+        mkdir -p tests/security/insider
+        mkdir -p tests/security/audit
+        mkdir -p tests/security/stored_procedures
+        mkdir -p tests/security/timing
+
+        # Run pgTAP tests first and capture output
+        echo "Running pgTAP security tests..."
+        PGPASSWORD=postgres psql -h localhost -U postgres -d db_dev -c "SELECT * FROM runtests('test/pgTAP/04-security_test.sql');" > pgtap_results.txt 2>&1 || true
+        PGPASSWORD=postgres psql -h localhost -U postgres -d db_dev -c "SELECT * FROM runtests('test/pgTAP/test_row_level_security.sql');" >> pgtap_results.txt 2>&1 || true
+
+        # Run the comprehensive test runner
+        echo "Running Python-based security tests..."
+        python tests/security/run_all_security_tests.py --config tests/security/github_config.json --output html --skip-pgtap
+
+        # Generate comprehensive report
+        python tests/security/generate_report.py --json $(ls -t security_test_report_*.json | head -1) --pgtap pgtap_results.txt --output comprehensive_security_report.html
+
+        # Create an index.html file that links to all reports
+        echo "<!DOCTYPE html>
+<html>
+<head>
+    <title>PostgreSQL Security Framework Test Reports</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1, h2 { color: #333366; }
+        .summary { margin: 20px 0; padding: 10px; background-color: #f0f0f0; border-radius: 5px; }
+        a { color: #0066cc; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>PostgreSQL Security Framework Test Reports</h1>
+    <p>Generated: $(date)</p>
+
+    <div class="summary">
+        <h2>Available Reports</h2>
+        <ul>
+            <li><a href="comprehensive_security_report.html"><strong>Comprehensive Security Report</strong></a></li>
+            <li><a href="$(ls -t security_test_report_*.html | head -1)">Latest HTML Report</a></li>
+            <li><a href="$(ls -t security_test_report_*.json | head -1)">Latest JSON Report</a></li>
+            <li><a href="security_tests.log">Python Test Log</a></li>
+            <li><a href="all_security_tests.log">All Tests Log</a></li>
+            <li><a href="pgtap_results.txt">pgTAP Test Results</a></li>
+            <li><a href="test_summary.md">Test Summary (Markdown)</a></li>
+        </ul>
+    </div>
+</body>
+</html>" > index.html
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-test-results
+        path: |
+          security_test_report_*.html
+          security_test_report_*.json
+          security_tests.log
+          all_security_tests.log
+          test_summary.md
+          pgtap_results.txt
+
+    - name: Check test results and generate summary
+      run: |
+        # Extract overall result from the JSON report
+        RESULT=$(ls -t security_test_report_*.json | head -1 | xargs cat | jq -r '.overall_result')
+        echo "Test result: $RESULT"
+
+        # Generate a summary report
+        echo "# PostgreSQL Security Framework Test Results" > test_summary.md
+        echo "" >> test_summary.md
+        echo "## Overall Result: $RESULT" >> test_summary.md
+        echo "" >> test_summary.md
+
+        # Add Python test results
+        echo "## Python-based Security Tests" >> test_summary.md
+        echo "" >> test_summary.md
+
+        # Extract summary statistics
+        TOTAL=$(ls -t security_test_report_*.json | head -1 | xargs cat | jq -r '.summary.total_tests')
+        PASSED=$(ls -t security_test_report_*.json | head -1 | xargs cat | jq -r '.summary.passed')
+        FAILED=$(ls -t security_test_report_*.json | head -1 | xargs cat | jq -r '.summary.failed')
+        WARNINGS=$(ls -t security_test_report_*.json | head -1 | xargs cat | jq -r '.summary.warnings')
+        ERRORS=$(ls -t security_test_report_*.json | head -1 | xargs cat | jq -r '.summary.errors')
+
+        echo "- Total Tests: $TOTAL" >> test_summary.md
+        echo "- Passed: $PASSED" >> test_summary.md
+        echo "- Failed: $FAILED" >> test_summary.md
+        echo "- Warnings: $WARNINGS" >> test_summary.md
+        echo "- Errors: $ERRORS" >> test_summary.md
+        echo "" >> test_summary.md
+
+        # Add pgTAP test results if available
+        if [ -f "pgtap_results.txt" ]; then
+          echo "## pgTAP Security Tests" >> test_summary.md
+          echo "" >> test_summary.md
+          PGTAP_TOTAL=$(grep -c "ok" pgtap_results.txt)
+          PGTAP_FAILED=$(grep -c "not ok" pgtap_results.txt)
+          PGTAP_PASSED=$((PGTAP_TOTAL - PGTAP_FAILED))
+
+          echo "- Total Tests: $PGTAP_TOTAL" >> test_summary.md
+          echo "- Passed: $PGTAP_PASSED" >> test_summary.md
+          echo "- Failed: $PGTAP_FAILED" >> test_summary.md
+          echo "" >> test_summary.md
+        fi
+
+        # Add link to detailed report
+        echo "## Detailed Reports" >> test_summary.md
+        echo "" >> test_summary.md
+        echo "- [HTML Report](./security_test_report_*.html)" >> test_summary.md
+        echo "- [JSON Report](./security_test_report_*.json)" >> test_summary.md
+        echo "- [Log File](./security_tests.log)" >> test_summary.md
+
+        # Create GitHub summary
+        cat test_summary.md >> $GITHUB_STEP_SUMMARY
+
+        # Fail the workflow if tests failed (but allow warnings)
+        if [ "$RESULT" == "ERROR" ] || [ "$RESULT" == "FAIL" ]; then
+          echo "Security tests failed!"
+          exit 1
+        fi
+
+    - name: Send notification on failure
+      if: failure()
+      uses: rtCamp/action-slack-notify@v2
+      env:
+        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        SLACK_CHANNEL: security-alerts
+        SLACK_COLOR: danger
+        SLACK_TITLE: Security Tests Failed
+        SLACK_MESSAGE: 'Security tests failed in the PostgreSQL Security Framework. Check the GitHub Actions logs for details.'
+        SLACK_FOOTER: 'PostgreSQL Security Framework'
+      continue-on-error: true
+
+    - name: Create report directory
+      if: always()
+      run: |
+        mkdir -p security-reports
+        cp index.html security-reports/
+        cp security_test_report_*.html security-reports/
+        cp security_test_report_*.json security-reports/
+        cp security_tests.log security-reports/
+        cp all_security_tests.log security-reports/ || true
+        cp pgtap_results.txt security-reports/ || true
+        cp test_summary.md security-reports/
+
+    - name: Publish test report
+      if: always()
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./security-reports
+        destination_dir: security-reports/${{ github.run_id }}
+        keep_files: true

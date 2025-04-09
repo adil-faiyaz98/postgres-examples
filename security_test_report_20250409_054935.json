@@ -1,0 +1,698 @@
+{
+  "test_suite": "PostgreSQL Security Framework Tests",
+  "timestamp": "2025-04-09T05:49:35.574997",
+  "overall_result": "ERROR",
+  "categories": {
+    "SQL Injection": {
+      "tests": [
+        {
+          "name": "SQL Injection Test 1",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 1.7623095505938027,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "SQL Injection Test 2",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 2.5924969773634743,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "SQL Injection Test 3",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 4.895824719320033,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "SQL Injection Test 4",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 0.11111662065189144,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "SQL Injection Test 5",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 2.128705690730982,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "SQL Injection Test 6",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 0.11382203079690145,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "SQL Injection Test 7",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 1.2304875990023447,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "SQL Injection Test 8",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 3.3996452495420564,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "SQL Injection Test 9",
+          "result": "ERROR",
+          "details": "Error during sql injection test execution",
+          "duration": 4.413330874639487,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        }
+      ],
+      "passed": 8,
+      "failed": 0,
+      "warnings": 0,
+      "errors": 1
+    },
+    "Authentication": {
+      "tests": [
+        {
+          "name": "Authentication Test 1",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 2.5388398871865325,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Authentication Test 2",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 2.292113995804265,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Authentication Test 3",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in authentication test",
+          "duration": 4.689498435429376,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Authentication Test 4",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in authentication test",
+          "duration": 1.8570965220724334,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Authentication Test 5",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in authentication test",
+          "duration": 3.1707689497975244,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Authentication Test 6",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in authentication test",
+          "duration": 2.4566154931341213,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Authentication Test 7",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in authentication test",
+          "duration": 1.3632796335089334,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Authentication Test 8",
+          "result": "ERROR",
+          "details": "Error during authentication test execution",
+          "duration": 0.6530593908345744,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        }
+      ],
+      "passed": 2,
+      "failed": 0,
+      "warnings": 5,
+      "errors": 1
+    },
+    "Encryption": {
+      "tests": [
+        {
+          "name": "Encryption Test 1",
+          "result": "FAIL",
+          "details": "Vulnerability detected in encryption test",
+          "duration": 3.2373070561340858,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Encryption Test 2",
+          "result": "FAIL",
+          "details": "Vulnerability detected in encryption test",
+          "duration": 4.724560618239762,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Encryption Test 3",
+          "result": "FAIL",
+          "details": "Vulnerability detected in encryption test",
+          "duration": 4.151832412748866,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Encryption Test 4",
+          "result": "FAIL",
+          "details": "Vulnerability detected in encryption test",
+          "duration": 1.191138873109245,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Encryption Test 5",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in encryption test",
+          "duration": 2.8479473098647405,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Encryption Test 6",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in encryption test",
+          "duration": 4.497351552023439,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Encryption Test 7",
+          "result": "ERROR",
+          "details": "Error during encryption test execution",
+          "duration": 2.2152486589559626,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Encryption Test 8",
+          "result": "ERROR",
+          "details": "Error during encryption test execution",
+          "duration": 1.7357700152173858,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Encryption Test 9",
+          "result": "ERROR",
+          "details": "Error during encryption test execution",
+          "duration": 3.4936896465610525,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Encryption Test 10",
+          "result": "ERROR",
+          "details": "Error during encryption test execution",
+          "duration": 1.6890205865853691,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        }
+      ],
+      "passed": 0,
+      "failed": 4,
+      "warnings": 2,
+      "errors": 4
+    },
+    "Input Validation": {
+      "tests": [
+        {
+          "name": "Input Validation Test 1",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 3.915154120116423,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Input Validation Test 2",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 0.7813350457391899,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Input Validation Test 3",
+          "result": "FAIL",
+          "details": "Vulnerability detected in input validation test",
+          "duration": 4.785599073427171,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Input Validation Test 4",
+          "result": "FAIL",
+          "details": "Vulnerability detected in input validation test",
+          "duration": 0.9478031975515389,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Input Validation Test 5",
+          "result": "FAIL",
+          "details": "Vulnerability detected in input validation test",
+          "duration": 2.352630012707088,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        }
+      ],
+      "passed": 2,
+      "failed": 3,
+      "warnings": 0,
+      "errors": 0
+    },
+    "Configuration": {
+      "tests": [
+        {
+          "name": "Configuration Test 1",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 4.036789348917781,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Configuration Test 2",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 0.15315526908929672,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Configuration Test 3",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 3.2629318593113203,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Configuration Test 4",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 0.8806412623175024,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Configuration Test 5",
+          "result": "FAIL",
+          "details": "Vulnerability detected in configuration test",
+          "duration": 0.9613520018994456,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Configuration Test 6",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in configuration test",
+          "duration": 4.782844370521804,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        }
+      ],
+      "passed": 4,
+      "failed": 1,
+      "warnings": 1,
+      "errors": 0
+    },
+    "Stealth": {
+      "tests": [
+        {
+          "name": "Stealth Test 1",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 0.5957574919457479,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Stealth Test 2",
+          "result": "FAIL",
+          "details": "Vulnerability detected in stealth test",
+          "duration": 0.8566040399197168,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Stealth Test 3",
+          "result": "FAIL",
+          "details": "Vulnerability detected in stealth test",
+          "duration": 3.3942761726191373,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Stealth Test 4",
+          "result": "FAIL",
+          "details": "Vulnerability detected in stealth test",
+          "duration": 3.096417609123162,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Stealth Test 5",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in stealth test",
+          "duration": 1.7166839178869937,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Stealth Test 6",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in stealth test",
+          "duration": 3.8265662794062663,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Stealth Test 7",
+          "result": "ERROR",
+          "details": "Error during stealth test execution",
+          "duration": 1.8340545922453853,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        }
+      ],
+      "passed": 1,
+      "failed": 3,
+      "warnings": 2,
+      "errors": 1
+    },
+    "AI Security": {
+      "tests": [
+        {
+          "name": "AI Security Test 1",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 1.6870714100024566,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "AI Security Test 2",
+          "result": "FAIL",
+          "details": "Vulnerability detected in ai security test",
+          "duration": 0.6174569797587475,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "AI Security Test 3",
+          "result": "FAIL",
+          "details": "Vulnerability detected in ai security test",
+          "duration": 2.9465473755627105,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "AI Security Test 4",
+          "result": "FAIL",
+          "details": "Vulnerability detected in ai security test",
+          "duration": 3.240981396351351,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "AI Security Test 5",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in ai security test",
+          "duration": 3.233025792356168,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "AI Security Test 6",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in ai security test",
+          "duration": 4.444639105329517,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "AI Security Test 7",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in ai security test",
+          "duration": 4.940134604022017,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "AI Security Test 8",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in ai security test",
+          "duration": 3.039321642206897,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "AI Security Test 9",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in ai security test",
+          "duration": 1.31471665835526,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        }
+      ],
+      "passed": 1,
+      "failed": 3,
+      "warnings": 5,
+      "errors": 0
+    },
+    "Infrastructure": {
+      "tests": [
+        {
+          "name": "Infrastructure Test 1",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 4.004592974749109,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Infrastructure Test 2",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 4.363760960550789,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Infrastructure Test 3",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 0.9548859455914961,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Infrastructure Test 4",
+          "result": "FAIL",
+          "details": "Vulnerability detected in infrastructure test",
+          "duration": 0.1272829566236778,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Infrastructure Test 5",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in infrastructure test",
+          "duration": 1.6821825265900576,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        }
+      ],
+      "passed": 3,
+      "failed": 1,
+      "warnings": 1,
+      "errors": 0
+    },
+    "Insider Threats": {
+      "tests": [
+        {
+          "name": "Insider Threats Test 1",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 0.6185346336712488,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Insider Threats Test 2",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 1.4341747242542737,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Insider Threats Test 3",
+          "result": "FAIL",
+          "details": "Vulnerability detected in insider threats test",
+          "duration": 0.5654512272528257,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Insider Threats Test 4",
+          "result": "FAIL",
+          "details": "Vulnerability detected in insider threats test",
+          "duration": 0.4090655867212247,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        }
+      ],
+      "passed": 2,
+      "failed": 2,
+      "warnings": 0,
+      "errors": 0
+    },
+    "Audit": {
+      "tests": [
+        {
+          "name": "Audit Test 1",
+          "result": "FAIL",
+          "details": "Vulnerability detected in audit test",
+          "duration": 3.7203537654754344,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Audit Test 2",
+          "result": "FAIL",
+          "details": "Vulnerability detected in audit test",
+          "duration": 2.3567619637709813,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Audit Test 3",
+          "result": "FAIL",
+          "details": "Vulnerability detected in audit test",
+          "duration": 3.9659527343213457,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Audit Test 4",
+          "result": "FAIL",
+          "details": "Vulnerability detected in audit test",
+          "duration": 2.646486764779246,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Audit Test 5",
+          "result": "FAIL",
+          "details": "Vulnerability detected in audit test",
+          "duration": 0.851879868066998,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Audit Test 6",
+          "result": "FAIL",
+          "details": "Vulnerability detected in audit test",
+          "duration": 2.478273825424811,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Audit Test 7",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in audit test",
+          "duration": 0.7775324484981236,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Audit Test 8",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in audit test",
+          "duration": 0.6573333277125684,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Audit Test 9",
+          "result": "ERROR",
+          "details": "Error during audit test execution",
+          "duration": 2.1381215426258495,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Audit Test 10",
+          "result": "ERROR",
+          "details": "Error during audit test execution",
+          "duration": 2.327847820796661,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        }
+      ],
+      "passed": 0,
+      "failed": 6,
+      "warnings": 2,
+      "errors": 2
+    },
+    "Stored Procedures": {
+      "tests": [
+        {
+          "name": "Stored Procedures Test 1",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 2.0054310933705692,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Stored Procedures Test 2",
+          "result": "WARNING",
+          "details": "Potential vulnerability detected in stored procedures test",
+          "duration": 1.545854273160843,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Stored Procedures Test 3",
+          "result": "ERROR",
+          "details": "Error during stored procedures test execution",
+          "duration": 0.19080848417982968,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Stored Procedures Test 4",
+          "result": "ERROR",
+          "details": "Error during stored procedures test execution",
+          "duration": 2.2601278142682606,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        }
+      ],
+      "passed": 1,
+      "failed": 0,
+      "warnings": 1,
+      "errors": 2
+    },
+    "Timing Attacks": {
+      "tests": [
+        {
+          "name": "Timing Attacks Test 1",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 4.101554686570549,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Timing Attacks Test 2",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 3.3167309254096895,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Timing Attacks Test 3",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 2.006490051834796,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Timing Attacks Test 4",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 3.4241651461998326,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Timing Attacks Test 5",
+          "result": "PASS",
+          "details": "No vulnerabilities detected",
+          "duration": 0.7329876705281412,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Timing Attacks Test 6",
+          "result": "FAIL",
+          "details": "Vulnerability detected in timing attacks test",
+          "duration": 1.9627098875662603,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        },
+        {
+          "name": "Timing Attacks Test 7",
+          "result": "ERROR",
+          "details": "Error during timing attacks test execution",
+          "duration": 0.9381842041650593,
+          "timestamp": "2025-04-09T05:49:35.574997"
+        }
+      ],
+      "passed": 5,
+      "failed": 1,
+      "warnings": 0,
+      "errors": 1
+    }
+  },
+  "summary": {
+    "total_tests": 84,
+    "passed": 29,
+    "failed": 24,
+    "warnings": 19,
+    "errors": 12
+  }
+}

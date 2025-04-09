@@ -1,0 +1,111 @@
+{
+  "timestamp": "2025-04-09T08:34:31.910387",
+  "overall_result": "ERROR",
+  "tests": [
+    {
+      "category": "Basic",
+      "name": "Basic PostgreSQL Test",
+      "result": "PASS",
+      "details": "Basic PostgreSQL functionality is working correctly; PostgreSQL version: PostgreSQL 16.8, compiled by Visual C++ build 1942, 64-bit; Current database: postgres; Current user: postgres",
+      "duration": 0.009002923965454102
+    },
+    {
+      "category": "SQL Injection",
+      "name": "Advanced SQL Injection",
+      "result": "PASS",
+      "details": "No advanced SQL injection vulnerabilities found",
+      "duration": 0.10797429084777832
+    },
+    {
+      "category": "SQL Injection",
+      "name": "Blind SQL Injection",
+      "result": "ERROR",
+      "details": "Error during test: column reference \"id\" is ambiguous\nLINE 1: SELECT id, name FROM (VALUES (1, 'test1'), (2, 'test2')) AS ...\n               ^\nDETAIL:  It could refer to either a PL/pgSQL variable or a table column.\nQUERY:  SELECT id, name FROM (VALUES (1, 'test1'), (2, 'test2')) AS t(id, name) WHERE id = 1\nCONTEXT:  PL/pgSQL function test_blind_injection(text) line 3 at RETURN QUERY\n",
+      "duration": 0.010994195938110352
+    },
+    {
+      "category": "SQL Injection",
+      "name": "Error-Based SQL Injection",
+      "result": "ERROR",
+      "details": "Error during test: current transaction is aborted, commands ignored until end of transaction block\n",
+      "duration": 0.0019998550415039062
+    },
+    {
+      "category": "SQL Injection",
+      "name": "Union-Based SQL Injection",
+      "result": "ERROR",
+      "details": "Error during test: current transaction is aborted, commands ignored until end of transaction block\n",
+      "duration": 0.001999378204345703
+    },
+    {
+      "category": "Authentication",
+      "name": "Privilege Escalation",
+      "result": "ERROR",
+      "details": "Error during test: current transaction is aborted, commands ignored until end of transaction block\n",
+      "duration": 0.0020041465759277344
+    },
+    {
+      "category": "Authentication",
+      "name": "RBAC Testing",
+      "result": "ERROR",
+      "details": "Error during RBAC testing: current transaction is aborted, commands ignored until end of transaction block\n",
+      "duration": 0.0009999275207519531
+    },
+    {
+      "category": "Authentication",
+      "name": "Weak Credentials",
+      "result": "ERROR",
+      "details": "Error during weak credentials testing: current transaction is aborted, commands ignored until end of transaction block\n",
+      "duration": 0.0020029544830322266
+    },
+    {
+      "category": "Encryption",
+      "name": "Data at Rest",
+      "result": "ERROR",
+      "details": "Error during data at rest encryption testing: current transaction is aborted, commands ignored until end of transaction block\n",
+      "duration": 0.0019986629486083984
+    },
+    {
+      "category": "Encryption",
+      "name": "Data in Transit",
+      "result": "ERROR",
+      "details": "Error during data in transit encryption testing: current transaction is aborted, commands ignored until end of transaction block\n",
+      "duration": 0.0010020732879638672
+    },
+    {
+      "category": "Encryption",
+      "name": "Cryptographic Security",
+      "result": "ERROR",
+      "details": "Error during cryptographic security tests: current transaction is aborted, commands ignored until end of transaction block\n",
+      "duration": 0.004529237747192383
+    },
+    {
+      "category": "Input Validation",
+      "name": "Buffer Overflow",
+      "result": "ERROR",
+      "details": "Error during buffer overflow testing: current transaction is aborted, commands ignored until end of transaction block\n",
+      "duration": 0.0010018348693847656
+    },
+    {
+      "category": "Input Validation",
+      "name": "Malicious Payloads",
+      "result": "ERROR",
+      "details": "Error during malicious payloads testing: current transaction is aborted, commands ignored until end of transaction block\n",
+      "duration": 0.0019996166229248047
+    },
+    {
+      "category": "Configuration",
+      "name": "CIS Benchmarks",
+      "result": "ERROR",
+      "details": "Error during CIS benchmarks testing: current transaction is aborted, commands ignored until end of transaction block\n",
+      "duration": 0.0030012130737304688
+    },
+    {
+      "category": "Configuration",
+      "name": "Misconfigurations",
+      "result": "ERROR",
+      "details": "Error during misconfigurations testing: current transaction is aborted, commands ignored until end of transaction block\n",
+      "duration": 0.0019991397857666016
+    }
+  ]
+}

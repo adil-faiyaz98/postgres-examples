@@ -1,0 +1,48 @@
+{
+  "timestamp": "2025-04-09T09:17:17.250159",
+  "overall_result": "ERROR",
+  "tests": [
+    {
+      "category": "SQL Injection",
+      "name": "Advanced SQL Injection",
+      "result": "PASS",
+      "details": "No advanced SQL injection vulnerabilities found",
+      "duration": 0.09044647216796875
+    },
+    {
+      "category": "SQL Injection",
+      "name": "Blind SQL Injection",
+      "result": "PASS",
+      "details": "No blind SQL injection vulnerabilities found",
+      "duration": 0.03082132339477539
+    },
+    {
+      "category": "SQL Injection",
+      "name": "Error-Based SQL Injection",
+      "result": "PASS",
+      "details": "No error-based SQL injection vulnerabilities found",
+      "duration": 0.030350446701049805
+    },
+    {
+      "category": "SQL Injection",
+      "name": "Union-Based SQL Injection",
+      "result": "ERROR",
+      "details": "Error during test: current transaction is aborted, commands ignored until end of transaction block\n",
+      "duration": 0.012998819351196289
+    },
+    {
+      "category": "Input Validation",
+      "name": "Buffer Overflow",
+      "result": "WARNING",
+      "details": "Found 46 functions accepting text inputs that might be vulnerable to buffer overflow: public.digest(text, text), public.digest(bytea, text), public.hmac(text, text, text), public.hmac(bytea, bytea, text), public.crypt(text, text)...",
+      "duration": 0.05376148223876953
+    },
+    {
+      "category": "Input Validation",
+      "name": "Malicious Payloads",
+      "result": "PASS",
+      "details": "No malicious payload vulnerabilities detected",
+      "duration": 0.07469534873962402
+    }
+  ]
+}

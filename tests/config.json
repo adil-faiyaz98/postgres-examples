@@ -1,0 +1,82 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 5433,
+    "name": "postgres",
+    "user": "postgres",
+    "password": "admin"
+  },
+  "max_parallel_tests": 4,
+  "tests": [
+    {
+      "name": "SQL Injection - Advanced",
+      "module": "sql_injection.advanced_injection",
+      "enabled": true
+    },
+    {
+      "name": "SQL Injection - Blind",
+      "module": "sql_injection.blind",
+      "enabled": true
+    },
+    {
+      "name": "SQL Injection - Error Based",
+      "module": "sql_injection.error_based",
+      "enabled": true
+    },
+    {
+      "name": "SQL Injection - Union Based",
+      "module": "sql_injection.union_based",
+      "enabled": true
+    },
+    {
+      "name": "Authentication - Privilege Escalation",
+      "module": "authentication.privilege_escalation",
+      "enabled": true
+    },
+    {
+      "name": "Authentication - RBAC Testing",
+      "module": "authentication.rbac_testing",
+      "enabled": true
+    },
+    {
+      "name": "Authentication - Weak Credentials",
+      "module": "authentication.weak_credentials",
+      "enabled": true
+    },
+    {
+      "name": "Encryption - Data at Rest",
+      "module": "encryption.data_at_rest",
+      "enabled": true
+    },
+    {
+      "name": "Encryption - Data in Transit",
+      "module": "encryption.data_in_transit",
+      "enabled": true
+    },
+    {
+      "name": "Encryption - Cryptographic Security",
+      "module": "encryption.cryptographic_security",
+      "enabled": true
+    },
+    {
+      "name": "Input Validation - Buffer Overflow",
+      "module": "input_validation.buffer_overflow",
+      "enabled": true
+    },
+    {
+      "name": "Input Validation - Malicious Payloads",
+      "module": "input_validation.malicious_payloads",
+      "enabled": true
+    },
+    {
+      "name": "Configuration - CIS Benchmarks",
+      "module": "configuration.cis_benchmarks",
+      "enabled": true
+    },
+    {
+      "name": "Configuration - Misconfigurations",
+      "module": "configuration.misconfigurations",
+      "enabled": true
+    }
+  ]
+}

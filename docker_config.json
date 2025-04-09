@@ -1,0 +1,211 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "name": "postgres_security_test",
+    "user": "postgres",
+    "password": "postgres"
+  },
+  "max_parallel_tests": 1,
+  "test_level": "standard",
+  "tests": [
+    {
+      "name": "SQL Injection - Advanced",
+      "module": "security.sql_injection.advanced_injection",
+      "enabled": true,
+      "description": "Tests for advanced SQL injection vulnerabilities"
+    },
+    {
+      "name": "SQL Injection - Blind",
+      "module": "security.sql_injection.blind_injection",
+      "enabled": true,
+      "description": "Tests for blind SQL injection vulnerabilities"
+    },
+    {
+      "name": "SQL Injection - Error Based",
+      "module": "security.sql_injection.error_based_injection",
+      "enabled": true,
+      "description": "Tests for error-based SQL injection vulnerabilities"
+    },
+    {
+      "name": "SQL Injection - Union Based",
+      "module": "security.sql_injection.union_based_injection",
+      "enabled": true,
+      "description": "Tests for UNION-based SQL injection vulnerabilities"
+    },
+    {
+      "name": "Authentication - Privilege Escalation",
+      "module": "security.authentication.privilege_escalation",
+      "enabled": true,
+      "description": "Tests for privilege escalation vulnerabilities"
+    },
+    {
+      "name": "Authentication - RBAC Testing",
+      "module": "security.authentication.rbac_testing",
+      "enabled": true,
+      "description": "Tests for role-based access control vulnerabilities"
+    },
+    {
+      "name": "Authentication - Weak Credentials",
+      "module": "security.authentication.weak_credentials",
+      "enabled": true,
+      "description": "Tests for weak credential vulnerabilities"
+    },
+    {
+      "name": "Encryption - Data at Rest",
+      "module": "security.encryption.data_at_rest",
+      "enabled": true,
+      "description": "Tests for data at rest encryption vulnerabilities"
+    },
+    {
+      "name": "Encryption - Data in Transit",
+      "module": "security.encryption.data_in_transit",
+      "enabled": true,
+      "description": "Tests for data in transit encryption vulnerabilities"
+    },
+    {
+      "name": "Encryption - Cryptographic Security",
+      "module": "security.encryption.cryptographic_security",
+      "enabled": true,
+      "description": "Tests for cryptographic security vulnerabilities"
+    },
+    {
+      "name": "Input Validation - Buffer Overflow",
+      "module": "security.input_validation.buffer_overflow",
+      "enabled": true,
+      "description": "Tests for buffer overflow vulnerabilities"
+    },
+    {
+      "name": "Input Validation - Malicious Payloads",
+      "module": "security.input_validation.malicious_payloads",
+      "enabled": true,
+      "description": "Tests for malicious payload injection vulnerabilities"
+    },
+    {
+      "name": "Configuration - CIS Benchmarks",
+      "module": "security.configuration.cis_benchmarks",
+      "enabled": true,
+      "description": "Tests for CIS Benchmarks compliance"
+    },
+    {
+      "name": "Configuration - Misconfigurations",
+      "module": "security.configuration.misconfigurations",
+      "enabled": true,
+      "description": "Tests for database misconfigurations"
+    },
+    {
+      "name": "Stealth - Reconnaissance",
+      "module": "security.stealth.reconnaissance",
+      "enabled": true,
+      "description": "Tests for stealthy reconnaissance vulnerabilities"
+    },
+    {
+      "name": "Stealth - Data Exfiltration DNS",
+      "module": "security.stealth.data_exfiltration_dns",
+      "enabled": true,
+      "description": "Tests for DNS tunneling data exfiltration vulnerabilities"
+    },
+    {
+      "name": "Stealth - Data Exfiltration HTTP",
+      "module": "security.stealth.data_exfiltration_http",
+      "enabled": true,
+      "description": "Tests for HTTP header smuggling vulnerabilities"
+    },
+    {
+      "name": "Stealth - Persistence Triggers",
+      "module": "security.stealth.persistence_triggers",
+      "enabled": true,
+      "description": "Tests for trigger-based persistence vulnerabilities"
+    },
+    {
+      "name": "Stealth - Persistence Tables",
+      "module": "security.stealth.persistence_tables",
+      "enabled": true,
+      "description": "Tests for table-based persistence vulnerabilities"
+    },
+    {
+      "name": "Stealth - Log Evasion",
+      "module": "security.stealth.log_evasion",
+      "enabled": true,
+      "description": "Tests for log evasion vulnerabilities"
+    },
+    {
+      "name": "Stealth - Timing Attacks",
+      "module": "security.stealth.timing_attacks",
+      "enabled": true,
+      "description": "Tests for timing-based attack vulnerabilities"
+    },
+    {
+      "name": "AI - Anomaly Detection",
+      "module": "security.ai.anomaly_detection",
+      "enabled": true,
+      "description": "Tests for AI-driven anomaly detection capabilities"
+    },
+    {
+      "name": "AI - ML Vulnerability Detection",
+      "module": "security.ai.ml_vulnerability_detection",
+      "enabled": true,
+      "description": "Tests for ML-powered vulnerability detection capabilities"
+    },
+    {
+      "name": "AI - Adversarial Testing",
+      "module": "security.ai.adversarial_testing",
+      "enabled": true,
+      "description": "Tests for resistance to adversarial AI techniques"
+    },
+    {
+      "name": "AI - Log Analysis",
+      "module": "security.ai.log_analysis",
+      "enabled": true,
+      "description": "Tests for AI-driven log analysis capabilities"
+    },
+    {
+      "name": "Infrastructure - Network Segmentation",
+      "module": "security.infrastructure.network_segmentation",
+      "enabled": true,
+      "description": "Tests for network segmentation vulnerabilities"
+    },
+    {
+      "name": "Infrastructure - Container Security",
+      "module": "security.infrastructure.container_security",
+      "enabled": true,
+      "description": "Tests for container security vulnerabilities"
+    },
+    {
+      "name": "Infrastructure - Backup Security",
+      "module": "security.infrastructure.backup_security",
+      "enabled": true,
+      "description": "Tests for backup security vulnerabilities"
+    },
+    {
+      "name": "Insider - Privilege Abuse",
+      "module": "security.insider.privilege_abuse",
+      "enabled": true,
+      "description": "Tests for privilege abuse detection capabilities"
+    },
+    {
+      "name": "Insider - Social Engineering",
+      "module": "security.insider.social_engineering",
+      "enabled": true,
+      "description": "Tests for social engineering vulnerabilities"
+    },
+    {
+      "name": "Audit - Logging Verification",
+      "module": "security.audit.audit_logging_verification",
+      "enabled": true,
+      "description": "Tests for audit logging verification"
+    },
+    {
+      "name": "Stored Procedures - Security",
+      "module": "security.stored_procedures.procedure_security",
+      "enabled": true,
+      "description": "Tests for stored procedure security vulnerabilities"
+    },
+    {
+      "name": "Timing - Temporal Attack Protection",
+      "module": "security.timing.temporal_attack_protection",
+      "enabled": true,
+      "description": "Tests for temporal attack protection"
+    }
+  ]
+}

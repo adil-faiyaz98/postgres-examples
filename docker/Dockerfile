@@ -14,7 +14,7 @@ RUN groupadd -g 999 postgres_secure && \
     useradd -r -u 999 -g postgres_secure postgres_secure
 
 # Final stage with pinned digest for security
-FROM postgres:15.4-alpine@sha256:6f7a4f4c0d3c0f0f8f1b5a2a9836a3c73357e8f29c062789f4f3f764b3f375a7
+FROM postgres:17.4-alpine@sha256:7062a2109c4b51f3c792c7ea01e83ed12ef9a980886e3b3d380a7d2e5f6ce3f5
 
 # Set build arguments (can be overridden via environment variables)
 ARG POSTGRES_USER
